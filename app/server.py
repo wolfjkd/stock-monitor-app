@@ -404,6 +404,27 @@ def api_clear_alerts():
     return jsonify({'success': True, 'message': 'Alerts cleared'})
 
 
+@app.route('/api/resolve_names', methods=['POST'])
+def api_resolve_names():
+    """批量解析股票名称"""
+    codes = request.json.get('codes', [])
+    if not codes:
+        return jsonify({'success': False, 'error': 'No codes provided'}), 400
+
+    results = {}
+    for code in codes:
+        try:
+            q = get_quote_tencent(code)
+            if q and q.get('name'):
+                results[code] = q['name']
+            else:
+                results[code] = code
+        except Exception:
+            results[code] = code
+
+    return jsonify({'success': True, 'data': results})
+
+
 def start_flask_server():
     """启动Flask服务器（在子线程中运行）"""
     print(f'[Server] Starting Flask on {FLASK_HOST}:{FLASK_PORT}')

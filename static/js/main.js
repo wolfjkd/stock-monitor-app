@@ -533,6 +533,51 @@ function initPanelSplitter() {
 }
 
 // ============================================================
+// 股票名称解析 + 排序
+// ============================================================
+
+async function resolveStockNames(codes) {
+    // 过滤掉已有名称的（name !== code）
+    const needResolve = codes.filter(code => {
+        const existing = currentConfig.alerts.find(a => a.code === code);
+        return existing && existing.name === code;
+    });
+
+    if (needResolve.length === 0) return;
+
+    try {
+        const result = await apiCall('/api/resolve_names', 'POST', { codes: needResolve });
+        if (result.success && result.data) {
+            let updated = 0;
+            currentConfig.alerts.forEach(a => {
+                if (result.data[a.code] && result.data[a.code] !== a.code) {
+                    a.name = result.data[a.code];
+                    updated++;
+                }
+            });
+            if (updated > 0) {
+                saveConfig(currentConfig);
+                showToast(`已识别 ${updated} 只股票名称`, 'info');
+            }
+        }
+    } catch (e) {
+        console.error('Failed to resolve stock names:', e);
+    }
+}
+
+function sortAlerts() {
+    if (!currentConfig || !currentConfig.alerts) return;
+    currentConfig.alerts.sort((a, b) => {
+        // 按股票名称（或代码）排序
+        const nameA = (a.name || a.code).localeCompare(b.name || b.code, 'zh');
+        const nameB = (b.name || b.code).localeCompare(a.name || a.code, 'zh');
+        if (nameA !== 0) return nameA;
+        // 同股票按目标价排序
+        return (a.target || 0) - (b.target || 0);
+    });
+}
+
+// ============================================================
 // CSV一键导入
 // ============================================================
 
@@ -626,6 +671,7 @@ function importCSV(input) {
 
             // 追加到现有配置
             currentConfig.alerts.push(...newAlerts);
+            sortAlerts();
             saveConfig(currentConfig);
 
             let msg = `成功导入 ${newAlerts.length} 条监控`;
@@ -633,6 +679,9 @@ function importCSV(input) {
                 msg += `，跳过 ${skipped.length} 条（${skipped.join(', ')}）`;
             }
             showToast(msg, 'success');
+
+            // 异步解析股票名称
+            resolveStockNames(newAlerts.map(a => a.code));
 
         } catch (err) {
             showToast('CSV解析失败: ' + err.message, 'danger');
@@ -681,10 +730,14 @@ function addStock() {
     }
 
     currentConfig.alerts.push(newStock);
+    sortAlerts();
     saveConfig(currentConfig);
 
     document.getElementById('addStockForm').reset();
     bootstrap.Modal.getInstance(document.getElementById('addStockModal')).hide();
+
+    // 如果名称是代码，尝试解析
+    if (!name) resolveStockNames([code]);
 }
 
 function editStock(index) {
@@ -732,6 +785,7 @@ function saveEdit() {
     const oldAlertKey = `${currentConfig.alerts[index].code}_${target}_${direction}`;
     triggeredAlerts.delete(oldAlertKey);
 
+    sortAlerts();
     saveConfig(currentConfig);
     bootstrap.Modal.getInstance(document.getElementById('editStockModal')).hide();
 }
