@@ -1,6 +1,13 @@
-# Stock Monitor App v4.0 - A股价格预警监控系统（桌面版）
+# Stock Monitor App - A股价格预警监控系统（桌面版）
 
 独立Windows桌面应用，支持系统托盘后台运行，无需打开浏览器。
+
+## 版本历史
+
+| 版本 | 日期 | 主要变更 |
+|------|------|----------|
+| v4.0 | 2026-06-09 | 首次发布：桌面版基础架构（Flask+pywebview+pystray+PyInstaller） |
+| v4.1 | 2026-06-09 | 增强监控字段（手数/委托方向/状态）、UI交互优化（列拖拽/面板分割/触发弹窗+声音） |
 
 ## 版本定位
 
@@ -8,7 +15,7 @@
 |------|------|------|
 | [stock-monitor](https://github.com/wolfjkd/stock-monitor) | CLI版 v2.0 | 命令行工具 |
 | [stock-monitor-web](https://github.com/wolfjkd/stock-monitor-web) | Web版 v3.0 | 浏览器访问 |
-| **stock-monitor-app** | 桌面版 v4.0 | 独立程序，系统托盘 |
+| **stock-monitor-app** | 桌面版 v4.x | 独立程序，系统托盘 |
 
 ## 核心功能
 
@@ -18,45 +25,60 @@
 - 右键菜单：显示窗口、退出
 
 ### 独立窗口
-- 无需打开浏览器
-- 像原生APP一样使用
+- 无需打开浏览器，双击exe直接运行
+- Edge WebView2渲染引擎，现代CSS/JS全支持
 - 关闭窗口后继续后台监控
 
 ### 监控功能
-- 实时行情展示
-- 多TDX节点支持
-- 预警日志
-- 配置管理
+- 实时行情展示（TDX通达信协议直连，郑州节点极速响应）
+- 多TDX节点支持，一键切换
+- 预警日志（SSE实时推送）
+- 配置管理（增删改查监控股票）
+
+### 监控配置字段
+| 字段 | 说明 |
+|------|------|
+| 股票代码 | sh/sz + 6位数字 |
+| 股票名称 | 自动或手动填写 |
+| 目标价格 | 触发预警的价格阈值 |
+| 手数 | 委托手数（可选） |
+| 委托方向 | 多仓（红色加粗）/ 空仓（绿色加粗） |
+| 监控方向 | 跌破提醒 / 涨破提醒 / 双向提醒 |
+| 状态 | 启用 / 暂停（暂停的不触发预警） |
+
+### UI交互
+- 表格列宽可拖拽调整
+- 监控配置与预警日志面板比例可拖拽调整
+- 首次触发预警：右上角弹窗 + 三声提示音（不抢焦点，8秒自动消失）
+- 预警行闪烁动画、行情卡片预警动画
 
 ## 技术栈
 
 | 组件 | 技术选型 | 说明 |
 |------|----------|------|
 | 后端 | Flask | 复用Web版 |
-| 前端 | HTML/JS/CSS | 复用Web版 |
-| 窗口 | pywebview | 轻量级WebView |
+| 前端 | HTML/JS/CSS + Bootstrap 5 | 复用Web版 |
+| 窗口 | pywebview (Edge WebView2) | 轻量级WebView |
 | 托盘 | pystray | 系统托盘 |
+| 数据源 | eltdx (TDX协议) + 腾讯接口 | 双源自动回退 |
 | 打包 | PyInstaller | 生成独立exe |
 
-## 安装依赖
+## 快速开始
 
+### 直接运行exe
+下载 Release 中的 `StockMonitor.exe`，双击运行。
+
+### 源码运行
 ```bash
 pip install -r requirements.txt
-```
-
-## 运行（开发模式）
-
-```bash
 python run.py
 ```
 
-## 打包（生成exe）
-
+### 打包
 ```bash
 python build/build.py
 ```
-
-打包完成后，`dist/StockMonitor.exe` 即为独立可执行文件。
+打包完成后，`dist/StockMonitor/StockMonitor.exe` 即为独立可执行文件（约6.6MB）。
 
 ## 项目结构
 
@@ -64,26 +86,30 @@ python build/build.py
 stock-monitor-app/
 ├── app/
 │   ├── __init__.py
-│   ├── main.py          # 主程序入口
-│   ├── tray.py          # 系统托盘模块
-│   ├── window.py        # 窗口管理模块
-│   ├── server.py        # Flask后端
-│   └── config.py        # 配置管理
+│   ├── main.py              # 主程序入口（Flask+pywebview+pystray整合）
+│   ├── server.py            # Flask后端（全部API接口+监控主循环）
+│   ├── config.py            # 应用配置
+│   ├── window.py            # pywebview窗口管理
+│   └── tray.py              # pystray系统托盘
 ├── static/
-│   ├── js/main.js       # 前端逻辑
-│   └── icon/            # 图标资源
+│   ├── js/main.js           # 前端交互逻辑（列拖拽/面板分割/弹窗/声音）
+│   ├── css/
+│   └── icon/app.ico         # 应用图标
 ├── templates/
-│   └── index.html       # 前端页面
+│   └── index.html           # 前端页面（单页应用）
 ├── scripts/
-│   ├── price_alert.py   # 核心监控脚本
-│   ├── watchlist_config.json
-│   └── tdx_nodes.json
+│   ├── price_alert.py       # 核心监控脚本（TDX/腾讯双源）
+│   ├── watchlist_config.json # 监控股票配置
+│   └── tdx_nodes.json       # TDX节点配置
 ├── build/
-│   └── build.py         # 打包脚本
-├── run.py               # 开发启动脚本
-├── run.bat              # Windows启动脚本
-├── build.bat            # Windows打包脚本
-├── requirements.txt
+│   └── build.py             # PyInstaller打包脚本
+├── docs/                    # 文档
+├── run.py                   # 开发启动入口
+├── run.bat                  # Windows启动脚本
+├── build.bat                # Windows打包脚本
+├── requirements.txt         # Python依赖
+├── CHANGELOG.md             # 版本变更记录
+├── LICENSE                  # MIT许可证
 └── README.md
 ```
 
