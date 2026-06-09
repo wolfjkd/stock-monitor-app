@@ -1,0 +1,15 @@
+# Stock Monitor App v4.0 - 桌面版依赖
+
+# Web框架
+flask>=2.3.0
+
+# 通达信数据源
+eltdx>=1.0.0
+
+# 桌面应用框架
+pywebview>=5.0
+pystray>=0.19
+Pillow>=10.0
+
+# 打包工具（仅打包时需要）
+pyinstaller>=6.0
