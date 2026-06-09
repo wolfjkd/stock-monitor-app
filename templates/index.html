@@ -94,7 +94,6 @@
         .data-row {
             flex: 1;
             display: flex;
-            gap: 8px;
             overflow: hidden;
             min-height: 0;
         }
@@ -108,6 +107,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-width: 200px;
         }
         .panel-header {
             padding: 6px 10px;
@@ -124,24 +124,52 @@
         .table-scroll {
             flex: 1;
             overflow-y: auto;
+            overflow-x: auto;
         }
         .config-table {
             font-size: 12px;
             margin: 0;
+            table-layout: fixed;
+            width: max-content;
+            min-width: 100%;
         }
         .config-table th {
             background: #f8f9fa;
             font-weight: 600;
             position: sticky;
             top: 0;
-            z-index: 1;
+            z-index: 2;
             padding: 4px 6px;
             border-right: 1px solid #dee2e6;
+            position: relative;
+            user-select: none;
+            white-space: nowrap;
         }
         .config-table th:last-child { border-right: none; }
-        .config-table td { padding: 3px 6px; vertical-align: middle; border-right: 1px solid #eee; }
+        .config-table td { padding: 3px 6px; vertical-align: middle; border-right: 1px solid #eee; white-space: nowrap; }
         .config-table td:last-child { border-right: none; }
         .config-table .btn { padding: 1px 5px; font-size: 11px; }
+
+        /* 列拖拽手柄 */
+        .config-table th .col-resize {
+            position: absolute;
+            right: -2px;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            cursor: col-resize;
+            z-index: 3;
+        }
+        .config-table th .col-resize:hover,
+        .config-table th .col-resize.active {
+            background: #4a90d9;
+            opacity: 0.5;
+        }
+
+        /* 目标价/手数 委托方向样式 */
+        .pos-long { color: #e74c3c; font-weight: 700; }
+        .pos-short { color: #2ecc71; font-weight: 700; }
+
         /* 股票分组背景色 */
         .config-table tr.stock-group-0 td { background: #ffffff; }
         .config-table tr.stock-group-1 td { background: #f0f7ff; }
@@ -167,6 +195,35 @@
         }
         .quote-card.alert-active { animation: cardFlash 1s ease-in-out 3; }
 
+        /* 面板分割拖拽条 */
+        .panel-splitter {
+            width: 6px;
+            cursor: col-resize;
+            background: #e0e0e0;
+            border-radius: 3px;
+            flex-shrink: 0;
+            transition: background 0.15s;
+            position: relative;
+        }
+        .panel-splitter:hover,
+        .panel-splitter.active {
+            background: #4a90d9;
+        }
+        .panel-splitter::after {
+            content: '⋮';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #999;
+            font-size: 14px;
+            pointer-events: none;
+        }
+        .panel-splitter:hover::after,
+        .panel-splitter.active::after {
+            color: #fff;
+        }
+
         /* 预警日志 */
         .alert-panel {
             flex: 2;
@@ -175,6 +232,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-width: 150px;
         }
         .alert-panel .panel-header {
             background: #16213e;
@@ -196,12 +254,64 @@
         .alert-log .alert-heartbeat { color: #555; font-style: italic; }
         .alert-log::-webkit-scrollbar { width: 4px; }
         .alert-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
-        .table-scroll::-webkit-scrollbar { width: 4px; }
+        .table-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
         .table-scroll::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
 
         /* 节点下拉 */
         .node-dropdown .dropdown-toggle { font-size: 11px; padding: 1px 8px; }
         .dropdown-menu { font-size: 12px; }
+
+        /* 首次触发弹窗 */
+        .alert-popup-container {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .alert-popup {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #fff;
+            border: 2px solid #e74c3c;
+            border-radius: 8px;
+            padding: 12px 16px;
+            min-width: 280px;
+            max-width: 380px;
+            box-shadow: 0 4px 20px rgba(231,76,60,0.4);
+            animation: popupSlideIn 0.3s ease-out;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+        .alert-popup:hover {
+            opacity: 0.9;
+        }
+        @keyframes popupSlideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes popupFadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+        .alert-popup .popup-title {
+            font-weight: 700;
+            font-size: 13px;
+            color: #ff6b6b;
+            margin-bottom: 4px;
+        }
+        .alert-popup .popup-message {
+            font-size: 12px;
+            color: #ffc107;
+            line-height: 1.4;
+        }
+        .alert-popup .popup-time {
+            font-size: 10px;
+            color: #6c757d;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -234,25 +344,38 @@
         <!-- 行情卡片 -->
         <div class="quote-row" id="stockCards"></div>
 
-        <!-- 配置表格 + 预警日志 -->
+        <!-- 配置表格 + 分割条 + 预警日志 -->
         <div class="data-row">
             <!-- 左：监控配置 -->
-            <div class="config-panel">
+            <div class="config-panel" id="configPanel">
                 <div class="panel-header">
                     <span><i class="bi bi-gear"></i> 监控配置</span>
                     <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addStockModal"><i class="bi bi-plus"></i> 添加</button>
                 </div>
                 <div class="table-scroll">
-                    <table class="table table-hover config-table">
+                    <table class="table table-hover config-table" id="configTable">
                         <thead>
-                            <tr><th>股票</th><th>代码</th><th>涨跌幅</th><th>当前价</th><th>目标价</th><th>手数</th><th>委托</th><th>监控方向</th><th>状态</th><th>操作</th></tr>
+                            <tr id="configTableHead">
+                                <th style="width:80px">股票<div class="col-resize"></div></th>
+                                <th style="width:80px">代码<div class="col-resize"></div></th>
+                                <th style="width:65px">涨跌幅<div class="col-resize"></div></th>
+                                <th style="width:65px">当前价<div class="col-resize"></div></th>
+                                <th style="width:65px">目标价<div class="col-resize"></div></th>
+                                <th style="width:50px">手数<div class="col-resize"></div></th>
+                                <th style="width:50px">委托<div class="col-resize"></div></th>
+                                <th style="width:65px">监控方向<div class="col-resize"></div></th>
+                                <th style="width:50px">状态<div class="col-resize"></div></th>
+                                <th style="width:40px">操作</th>
+                            </tr>
                         </thead>
                         <tbody id="configTableBody"></tbody>
                     </table>
                 </div>
             </div>
+            <!-- 分割条 -->
+            <div class="panel-splitter" id="panelSplitter"></div>
             <!-- 右：预警日志 -->
-            <div class="alert-panel">
+            <div class="alert-panel" id="alertPanel">
                 <div class="panel-header">
                     <span><i class="bi bi-bell"></i> 预警日志</span>
                     <button class="btn btn-outline-secondary btn-sm" onclick="clearAlerts()"><i class="bi bi-trash"></i> 清空</button>
@@ -264,6 +387,9 @@
         </div>
     </div>
 </div>
+
+<!-- 首次触发弹窗容器 -->
+<div class="alert-popup-container" id="alertPopupContainer"></div>
 
 <!-- 添加股票模态框 -->
 <div class="modal fade" id="addStockModal" tabindex="-1">

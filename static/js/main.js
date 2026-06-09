@@ -12,28 +12,22 @@ let eventSource = null;
 let refreshInterval = null;
 let currentConfig = null;
 
+// 首次触发追踪（防止重复弹窗）
+const triggeredAlerts = new Set();
+
 // ============================================================
 // 初始化
 // ============================================================
 
 document.addEventListener('DOMContentLoaded', function() {
-    // 获取版本号
     loadVersion();
-
-    // 加载配置
     loadConfig();
-
-    // 检查监控状态
     checkMonitorStatus();
-
-    // 加载节点列表
     loadNodes();
-
-    // 启动定时刷新行情
     refreshInterval = setInterval(refreshQuotes, 3000);
-
-    // 连接SSE预警流
     connectAlertStream();
+    initColResize();
+    initPanelSplitter();
 });
 
 // ============================================================
@@ -107,7 +101,7 @@ function renderConfigTable() {
     let groupIndex = 0;
     currentConfig.alerts.forEach(item => {
         if (!(item.code in stockGroups)) {
-            stockGroups[item.code] = groupIndex % 6; // 6种颜色循环
+            stockGroups[item.code] = groupIndex % 6;
             groupIndex++;
         }
     });
@@ -121,8 +115,9 @@ function renderConfigTable() {
         const dirLabel = dir === 'below' ? '跌破' : dir === 'above' ? '涨破' : '双向';
         const dirClass = dir === 'below' ? 'text-success' : dir === 'above' ? 'text-danger' : 'text-primary';
 
-        // 委托方向
+        // 委托方向 → 决定目标价/手数的颜色
         const position = item.position || '多仓';
+        const posColorClass = position === '多仓' ? 'pos-long' : 'pos-short';
         const positionClass = position === '多仓' ? 'text-danger fw-bold' : 'text-success fw-bold';
 
         // 手数
@@ -141,14 +136,17 @@ function renderConfigTable() {
         const pausedClass = isPaused ? 'opacity-50' : '';
         const rowClass = `${groupClass} ${isDivider ? 'stock-divider' : ''} ${alertClass} ${pausedClass}`;
 
+        // 检查首次触发
+        checkFirstTrigger(item, quote, priceStatus);
+
         return `
             <tr class="${rowClass}">
                 <td><strong>${item.name || item.code}</strong></td>
                 <td><code>${item.code}</code></td>
                 <td class="${getPriceClass(changePct)}">${formatChange(changePct)}</td>
                 <td class="${getPriceClass(changePct)}">${formatPrice(price)}</td>
-                <td>${formatPrice(item.target)}</td>
-                <td style="font-size:11px">${lots}</td>
+                <td class="${posColorClass}">${formatPrice(item.target)}</td>
+                <td class="${posColorClass}" style="font-size:11px">${lots}</td>
                 <td><span class="${positionClass}" style="font-size:11px">${position}</span></td>
                 <td><span class="${dirClass}" style="font-size:11px">${dirLabel}</span></td>
                 <td>${statusBadge}</td>
@@ -171,9 +169,6 @@ function getStatus(item, quote) {
     const target = item.target;
     const direction = item.dir || 'below';
     const diff = price - target;
-    const diffPct = (diff / target) * 100;
-
-    // 临界阈值：0.01元（低价股适用）
     const threshold = 0.01;
 
     if (direction === 'below') {
@@ -188,6 +183,86 @@ function getStatus(item, quote) {
         if (price <= target || price >= target) return { class: 'status-alert', text: '已触发' };
         if (Math.abs(diff) <= threshold) return { class: 'status-warning', text: '临界' };
         return { class: 'status-safe', text: '安全' };
+    }
+}
+
+// ============================================================
+// 首次触发弹窗 + 声音
+// ============================================================
+
+function checkFirstTrigger(item, quote, priceStatus) {
+    if (!quote || item.status === 'paused') return;
+    if (priceStatus.class !== 'status-alert') return;
+
+    // 生成唯一key: code + target + direction
+    const alertKey = `${item.code}_${item.target}_${item.dir || 'below'}`;
+    if (triggeredAlerts.has(alertKey)) return;
+
+    // 首次触发！
+    triggeredAlerts.add(alertKey);
+
+    const price = quote.price;
+    const name = item.name || item.code;
+    const dir = item.dir || 'below';
+    const dirLabel = dir === 'below' ? '跌破' : dir === 'above' ? '涨破' : '触发';
+    const position = item.position || '多仓';
+    const lots = item.lots ? ` | ${item.lots}手` : '';
+    const message = `${name} ${dirLabel} ¥${formatPrice(item.target)} | 当前: ¥${formatPrice(price)} | ${position}${lots}`;
+
+    showFirstAlertPopup(message);
+    playAlertSound();
+}
+
+function showFirstAlertPopup(message) {
+    const container = document.getElementById('alertPopupContainer');
+    const popup = document.createElement('div');
+    popup.className = 'alert-popup';
+
+    const now = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    popup.innerHTML = `
+        <div class="popup-title"><i class="bi bi-exclamation-triangle-fill"></i> 预警触发</div>
+        <div class="popup-message">${message}</div>
+        <div class="popup-time">${now} · 点击关闭</div>
+    `;
+
+    // 点击关闭
+    popup.onclick = function() {
+        popup.style.animation = 'popupFadeOut 0.3s ease-in forwards';
+        setTimeout(() => popup.remove(), 300);
+    };
+
+    container.appendChild(popup);
+
+    // 8秒后自动消失
+    setTimeout(() => {
+        if (popup.parentNode) {
+            popup.style.animation = 'popupFadeOut 0.3s ease-in forwards';
+            setTimeout(() => popup.remove(), 300);
+        }
+    }, 8000);
+}
+
+function playAlertSound() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // 三声短促的提示音
+        [0, 0.2, 0.4].forEach(delay => {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime + delay);
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime + delay);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + delay + 0.15);
+
+            oscillator.start(audioCtx.currentTime + delay);
+            oscillator.stop(audioCtx.currentTime + delay + 0.15);
+        });
+    } catch (e) {
+        console.log('Audio playback failed:', e);
     }
 }
 
@@ -209,7 +284,6 @@ function renderStockCards() {
     const container = document.getElementById('stockCards');
     if (!currentConfig || !currentConfig.alerts) return;
 
-    // 按股票代码分组，只显示每个股票一次
     const uniqueStocks = {};
     currentConfig.alerts.forEach(item => {
         if (!uniqueStocks[item.code]) {
@@ -233,7 +307,6 @@ function renderStockCards() {
         const changePct = quote.changePct;
         const priceClass = getPriceClass(changePct);
 
-        // 检查是否触发预警（仅检查启用状态的）
         const alertItems = currentConfig.alerts.filter(a => a.code === item.code && a.status !== 'paused');
         let hasAlert = false;
         for (const ai of alertItems) {
@@ -307,7 +380,6 @@ function updateMonitorUI(data) {
         uptimeEl.textContent = '--:--:--';
     }
 
-    // 更新节点显示
     if (data.current_node) {
         updateCurrentNodeDisplay(data.current_node);
     }
@@ -341,8 +413,6 @@ function connectAlertStream() {
 
 function addAlertToLog(alert) {
     const logContainer = document.getElementById('alertLog');
-
-    // 移除"等待预警事件"提示
     const emptyMsg = logContainer.querySelector('.alert-heartbeat');
     if (emptyMsg) emptyMsg.remove();
 
@@ -353,10 +423,8 @@ function addAlertToLog(alert) {
         <span class="alert-message">${alert.message}</span>
     `;
 
-    // 添加到顶部
     logContainer.insertBefore(alertDiv, logContainer.firstChild);
 
-    // 限制日志数量
     while (logContainer.children.length > 100) {
         logContainer.removeChild(logContainer.lastChild);
     }
@@ -367,6 +435,101 @@ async function clearAlerts() {
     const logContainer = document.getElementById('alertLog');
     logContainer.innerHTML = '<div class="alert-heartbeat">等待预警事件...</div>';
     showToast('日志已清空', 'info');
+}
+
+// ============================================================
+// 表格列拖拽调整宽度
+// ============================================================
+
+function initColResize() {
+    const table = document.getElementById('configTable');
+    if (!table) return;
+
+    const headers = table.querySelectorAll('thead th');
+    let resizing = false;
+    let startX = 0;
+    let startWidth = 0;
+    let currentTh = null;
+
+    table.addEventListener('mousedown', function(e) {
+        const handle = e.target.closest('.col-resize');
+        if (!handle) return;
+
+        e.preventDefault();
+        resizing = true;
+        currentTh = handle.parentElement;
+        startX = e.clientX;
+        startWidth = currentTh.offsetWidth;
+        handle.classList.add('active');
+        document.body.style.cursor = 'col-resize';
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (!resizing || !currentTh) return;
+        const diff = e.clientX - startX;
+        const newWidth = Math.max(30, startWidth + diff);
+        currentTh.style.width = newWidth + 'px';
+    });
+
+    document.addEventListener('mouseup', function() {
+        if (resizing) {
+            resizing = false;
+            document.querySelectorAll('.col-resize').forEach(h => h.classList.remove('active'));
+            document.body.style.cursor = '';
+            currentTh = null;
+        }
+    });
+}
+
+// ============================================================
+// 面板分割拖拽
+// ============================================================
+
+function initPanelSplitter() {
+    const splitter = document.getElementById('panelSplitter');
+    const configPanel = document.getElementById('configPanel');
+    const alertPanel = document.getElementById('alertPanel');
+    const dataRow = splitter.parentElement;
+
+    let dragging = false;
+    let startX = 0;
+    let startConfigFlex = 3;
+    let startAlertFlex = 2;
+
+    splitter.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        dragging = true;
+        startX = e.clientX;
+        startConfigFlex = parseFloat(getComputedStyle(configPanel).flexGrow) || 3;
+        startAlertFlex = parseFloat(getComputedStyle(alertPanel).flexGrow) || 2;
+        splitter.classList.add('active');
+        document.body.style.cursor = 'col-resize';
+        // 防止iframe捕获鼠标
+        document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (!dragging) return;
+
+        const dataRowWidth = dataRow.offsetWidth;
+        const diff = e.clientX - startX;
+        const diffRatio = diff / dataRowWidth * (startConfigFlex + startAlertFlex);
+
+        const newConfigFlex = Math.max(1, startConfigFlex + diffRatio);
+        const newAlertFlex = Math.max(1, startAlertFlex - diffRatio);
+
+        configPanel.style.flex = newConfigFlex;
+        alertPanel.style.flex = newAlertFlex;
+    });
+
+    document.addEventListener('mouseup', function() {
+        if (dragging) {
+            dragging = false;
+            splitter.classList.remove('active');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
+    });
 }
 
 // ============================================================
@@ -387,7 +550,6 @@ function addStock() {
         return;
     }
 
-    // 验证代码格式
     if (!/^(sh|sz)\d{6}$/.test(code)) {
         showToast('股票代码格式错误，应为 sh+6位数字 或 sz+6位数字', 'warning');
         return;
@@ -402,7 +564,6 @@ function addStock() {
         status: status
     };
 
-    // 仅在有值时添加手数
     if (lots) {
         newStock.lots = lots;
     }
@@ -410,7 +571,6 @@ function addStock() {
     currentConfig.alerts.push(newStock);
     saveConfig(currentConfig);
 
-    // 清空表单并关闭模态框
     document.getElementById('addStockForm').reset();
     bootstrap.Modal.getInstance(document.getElementById('addStockModal')).hide();
 }
@@ -456,8 +616,11 @@ function saveEdit() {
         delete currentConfig.alerts[index].lots;
     }
 
-    saveConfig(currentConfig);
+    // 清除该条的触发记录，使其可以重新触发
+    const oldAlertKey = `${currentConfig.alerts[index].code}_${target}_${direction}`;
+    triggeredAlerts.delete(oldAlertKey);
 
+    saveConfig(currentConfig);
     bootstrap.Modal.getInstance(document.getElementById('editStockModal')).hide();
 }
 
@@ -466,6 +629,10 @@ function deleteStock() {
     const stock = currentConfig.alerts[index];
 
     if (confirm(`确定要删除 ${stock.name || stock.code} 吗？`)) {
+        // 清除触发记录
+        const alertKey = `${stock.code}_${stock.target}_${stock.dir || 'below'}`;
+        triggeredAlerts.delete(alertKey);
+
         currentConfig.alerts.splice(index, 1);
         saveConfig(currentConfig);
         bootstrap.Modal.getInstance(document.getElementById('editStockModal')).hide();
@@ -513,7 +680,7 @@ async function switchNode(nodeId) {
     const result = await apiCall('/api/nodes/switch', 'POST', { node_id: nodeId });
     if (result.success) {
         showToast(`已切换到 ${result.node.name}`, 'success');
-        loadNodes(); // 刷新节点列表
+        loadNodes();
     } else {
         showToast('切换失败: ' + (result.error || '未知错误'), 'danger');
     }
@@ -542,7 +709,6 @@ function getPriceClass(changePct) {
 }
 
 function showToast(message, type = 'info') {
-    // 创建toast容器（如果不存在）
     let toastContainer = document.getElementById('toastContainer');
     if (!toastContainer) {
         toastContainer = document.createElement('div');
@@ -567,7 +733,6 @@ function showToast(message, type = 'info') {
     const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
     toast.show();
 
-    // 自动移除
     toastElement.addEventListener('hidden.bs.toast', () => {
         toastElement.remove();
     });
