@@ -639,7 +639,7 @@ function importCSV(input) {
         }
     };
 
-    reader.readAsText(file, 'UTF-8');
+    reader.readAsText(file, 'GBK');
     // 清空input，允许重复导入同一文件
     input.value = '';
 }
