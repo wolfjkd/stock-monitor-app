@@ -568,12 +568,16 @@ async function resolveStockNames(codes) {
 function sortAlerts() {
     if (!currentConfig || !currentConfig.alerts) return;
     currentConfig.alerts.sort((a, b) => {
-        // 按股票名称（或代码）排序
-        const nameA = (a.name || a.code).localeCompare(b.name || b.code, 'zh');
-        const nameB = (b.name || b.code).localeCompare(a.name || a.code, 'zh');
-        if (nameA !== 0) return nameA;
-        // 同股票按目标价排序
-        return (a.target || 0) - (b.target || 0);
+        // 按股票名称（或代码）分组
+        const nameCmp = (a.name || a.code).localeCompare(b.name || b.code, 'zh');
+        if (nameCmp !== 0) return nameCmp;
+        // 同股票按目标价降序（高价在上）
+        const priceCmp = (b.target || 0) - (a.target || 0);
+        if (priceCmp !== 0) return priceCmp;
+        // 同价时空仓在上
+        const posA = a.position === '空仓' ? 0 : 1;
+        const posB = b.position === '空仓' ? 0 : 1;
+        return posA - posB;
     });
 }
 
