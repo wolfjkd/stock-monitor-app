@@ -4,7 +4,8 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
+build/work/
+build/StockMonitor/
 develop-eggs/
 dist/
 downloads/
@@ -37,7 +38,6 @@ Thumbs.db
 
 # Build artifacts
 dist/
-build/work/
 *.spec
 
 # Logs
