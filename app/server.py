@@ -109,6 +109,7 @@ def monitor_loop():
                 target = item['target']
                 direction = item.get('dir', 'below')
                 name = item.get('name', code)
+                is_paused = item.get('status') == 'paused'
 
                 try:
                     q = fetch_quote(code, source)
@@ -126,7 +127,7 @@ def monitor_loop():
                         'name': name,
                         'code': code,
                         'price': price,
-                        'change_pct': q.get('change_pct'),
+                        'changePct': q.get('change_pct'),
                         'yest_close': q.get('yest_close'),
                         'open': q.get('open'),
                         'high': q.get('high'),
@@ -138,40 +139,41 @@ def monitor_loop():
                         'last_update': now_str
                     }
 
-                    # 检查是否触发预警
-                    triggered = False
-                    reason = ''
+                    # 检查是否触发预警（暂停状态不触发）
+                    if not is_paused:
+                        triggered = False
+                        reason = ''
 
-                    if direction in ('below', 'both') and price <= target:
-                        triggered = True
-                        reason = f'{name}({code}) 跌破 {target} | 当前: {price:.2f}'
-                    if direction in ('above', 'both') and price >= target:
-                        triggered = True
-                        reason = f'{name}({code}) 涨破 {target} | 当前: {price:.2f}'
+                        if direction in ('below', 'both') and price <= target:
+                            triggered = True
+                            reason = f'{name}({code}) 跌破 {target} | 当前: {price:.2f}'
+                        if direction in ('above', 'both') and price >= target:
+                            triggered = True
+                            reason = f'{name}({code}) 涨破 {target} | 当前: {price:.2f}'
 
-                    if triggered:
-                        cooldown_key = f'{code}_{direction}'
-                        last_alert_time = alert_cooldown.get(cooldown_key, 0)
-                        current_time = time.time()
+                        if triggered:
+                            cooldown_key = f'{code}_{direction}'
+                            last_alert_time = alert_cooldown.get(cooldown_key, 0)
+                            current_time = time.time()
 
-                        if current_time - last_alert_time >= 60:
-                            alert_line = f'[{now_str}] *** ALERT *** {reason}'
-                            print(alert_line)
+                            if current_time - last_alert_time >= 60:
+                                alert_line = f'[{now_str}] *** ALERT *** {reason}'
+                                print(alert_line)
 
-                            # 推送到SSE队列
-                            alert_data = {
-                                'time': now_str,
-                                'type': 'alert',
-                                'message': reason,
-                                'code': code,
-                                'price': price
-                            }
-                            try:
-                                alert_queue.put_nowait(alert_data)
-                            except queue.Full:
-                                pass
+                                # 推送到SSE队列
+                                alert_data = {
+                                    'time': now_str,
+                                    'type': 'alert',
+                                    'message': reason,
+                                    'code': code,
+                                    'price': price
+                                }
+                                try:
+                                    alert_queue.put_nowait(alert_data)
+                                except queue.Full:
+                                    pass
 
-                            alert_cooldown[cooldown_key] = current_time
+                                alert_cooldown[cooldown_key] = current_time
 
                 except Exception as e:
                     print(f'[Monitor] Error for {code}: {e}')

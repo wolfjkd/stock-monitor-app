@@ -1,5 +1,5 @@
 /**
- * main.js — Stock Monitor Web v3.0
+ * main.js — Stock Monitor App v4.0
  * 前端交互逻辑
  */
 
@@ -94,7 +94,7 @@ function renderConfigTable() {
     if (!currentConfig || !currentConfig.alerts || currentConfig.alerts.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="text-center text-muted py-4">
+                <td colspan="10" class="text-center text-muted py-4">
                     <i class="bi bi-inbox"></i> 暂无监控股票，点击"添加"开始
                 </td>
             </tr>
@@ -116,7 +116,7 @@ function renderConfigTable() {
         const quote = window.quotesCache ? window.quotesCache[item.code] : null;
         const price = quote ? quote.price : '--';
         const changePct = quote ? quote.changePct : null;
-        const status = getStatus(item, quote);
+        const priceStatus = getStatus(item, quote);
         const dir = item.dir || 'below';
         const dirLabel = dir === 'below' ? '跌破' : dir === 'above' ? '涨破' : '双向';
         const dirClass = dir === 'below' ? 'text-success' : dir === 'above' ? 'text-danger' : 'text-primary';
@@ -125,10 +125,21 @@ function renderConfigTable() {
         const position = item.position || '多仓';
         const positionClass = position === '多仓' ? 'text-danger fw-bold' : 'text-success fw-bold';
 
+        // 手数
+        const lots = item.lots || '--';
+
+        // 启用/暂停状态
+        const status = item.status || 'enabled';
+        const isPaused = status === 'paused';
+        const statusBadge = isPaused
+            ? '<span class="badge bg-secondary" style="font-size:10px">暂停</span>'
+            : '<span class="badge bg-success" style="font-size:10px">启用</span>';
+
         const groupClass = `stock-group-${stockGroups[item.code]}`;
         const isDivider = index > 0 && currentConfig.alerts[index - 1].code !== item.code;
-        const alertClass = status.class === 'status-alert' ? 'alert-row' : status.class === 'status-warning' ? 'warning-row' : '';
-        const rowClass = `${groupClass} ${isDivider ? 'stock-divider' : ''} ${alertClass}`;
+        const alertClass = !isPaused && priceStatus.class === 'status-alert' ? 'alert-row' : !isPaused && priceStatus.class === 'status-warning' ? 'warning-row' : '';
+        const pausedClass = isPaused ? 'opacity-50' : '';
+        const rowClass = `${groupClass} ${isDivider ? 'stock-divider' : ''} ${alertClass} ${pausedClass}`;
 
         return `
             <tr class="${rowClass}">
@@ -137,9 +148,10 @@ function renderConfigTable() {
                 <td class="${getPriceClass(changePct)}">${formatChange(changePct)}</td>
                 <td class="${getPriceClass(changePct)}">${formatPrice(price)}</td>
                 <td>${formatPrice(item.target)}</td>
+                <td style="font-size:11px">${lots}</td>
                 <td><span class="${positionClass}" style="font-size:11px">${position}</span></td>
-                <td><span class="status-badge ${status.class}" style="font-size:10px">${status.text}</span></td>
                 <td><span class="${dirClass}" style="font-size:11px">${dirLabel}</span></td>
+                <td>${statusBadge}</td>
                 <td>
                     <button class="btn btn-outline-primary" onclick="editStock(${index})">
                         <i class="bi bi-pencil"></i>
@@ -221,8 +233,8 @@ function renderStockCards() {
         const changePct = quote.changePct;
         const priceClass = getPriceClass(changePct);
 
-        // 检查是否触发预警
-        const alertItems = currentConfig.alerts.filter(a => a.code === item.code);
+        // 检查是否触发预警（仅检查启用状态的）
+        const alertItems = currentConfig.alerts.filter(a => a.code === item.code && a.status !== 'paused');
         let hasAlert = false;
         for (const ai of alertItems) {
             const s = getStatus(ai, quote);
@@ -365,7 +377,10 @@ function addStock() {
     const code = document.getElementById('addCode').value.trim();
     const name = document.getElementById('addName').value.trim();
     const target = parseFloat(document.getElementById('addTarget').value);
+    const lots = parseInt(document.getElementById('addLots').value) || null;
+    const position = document.getElementById('addPosition').value;
     const direction = document.getElementById('addDirection').value;
+    const status = document.getElementById('addStatus').value;
 
     if (!code || !target) {
         showToast('请填写股票代码和目标价格', 'warning');
@@ -378,18 +393,19 @@ function addStock() {
         return;
     }
 
-    // 检查是否已存在
-    if (currentConfig.alerts.some(a => a.code === code)) {
-        showToast('该股票已在监控列表中', 'warning');
-        return;
-    }
-
     const newStock = {
         code,
         name: name || code,
         target,
-        dir: direction
+        dir: direction,
+        position: position,
+        status: status
     };
+
+    // 仅在有值时添加手数
+    if (lots) {
+        newStock.lots = lots;
+    }
 
     currentConfig.alerts.push(newStock);
     saveConfig(currentConfig);
@@ -405,7 +421,10 @@ function editStock(index) {
     document.getElementById('editCode').value = stock.code;
     document.getElementById('editName').value = stock.name || '';
     document.getElementById('editTarget').value = stock.target;
+    document.getElementById('editLots').value = stock.lots || '';
+    document.getElementById('editPosition').value = stock.position || '多仓';
     document.getElementById('editDirection').value = stock.dir || 'below';
+    document.getElementById('editStatus').value = stock.status || 'enabled';
 
     const modal = new bootstrap.Modal(document.getElementById('editStockModal'));
     modal.show();
@@ -415,7 +434,10 @@ function saveEdit() {
     const index = parseInt(document.getElementById('editIndex').value);
     const name = document.getElementById('editName').value.trim();
     const target = parseFloat(document.getElementById('editTarget').value);
+    const lots = parseInt(document.getElementById('editLots').value) || null;
+    const position = document.getElementById('editPosition').value;
     const direction = document.getElementById('editDirection').value;
+    const status = document.getElementById('editStatus').value;
 
     if (!target) {
         showToast('请填写目标价格', 'warning');
@@ -425,6 +447,14 @@ function saveEdit() {
     currentConfig.alerts[index].name = name || currentConfig.alerts[index].code;
     currentConfig.alerts[index].target = target;
     currentConfig.alerts[index].dir = direction;
+    currentConfig.alerts[index].position = position;
+    currentConfig.alerts[index].status = status;
+
+    if (lots) {
+        currentConfig.alerts[index].lots = lots;
+    } else {
+        delete currentConfig.alerts[index].lots;
+    }
 
     saveConfig(currentConfig);
 

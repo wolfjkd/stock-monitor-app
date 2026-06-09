@@ -245,7 +245,7 @@
                 <div class="table-scroll">
                     <table class="table table-hover config-table">
                         <thead>
-                            <tr><th>股票</th><th>代码</th><th>涨跌幅</th><th>当前价</th><th>目标价</th><th>委托</th><th>状态</th><th>监控方向</th><th>操作</th></tr>
+                            <tr><th>股票</th><th>代码</th><th>涨跌幅</th><th>当前价</th><th>目标价</th><th>手数</th><th>委托</th><th>监控方向</th><th>状态</th><th>操作</th></tr>
                         </thead>
                         <tbody id="configTableBody"></tbody>
                     </table>
@@ -267,16 +267,29 @@
 
 <!-- 添加股票模态框 -->
 <div class="modal fade" id="addStockModal" tabindex="-1">
-    <div class="modal-dialog modal-sm">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header py-2"><h6 class="modal-title">添加监控股票</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body py-2">
                 <form id="addStockForm">
-                    <div class="mb-2"><label class="form-label mb-0">股票代码</label><input type="text" class="form-control form-control-sm" id="addCode" placeholder="sh601868" required></div>
-                    <div class="mb-2"><label class="form-label mb-0">股票名称</label><input type="text" class="form-control form-control-sm" id="addName" placeholder="可选"></div>
-                    <div class="mb-2"><label class="form-label mb-0">目标价格</label><input type="number" class="form-control form-control-sm" id="addTarget" step="0.01" required></div>
-                    <div class="mb-2"><label class="form-label mb-0">监控方向</label>
-                        <select class="form-select form-select-sm" id="addDirection"><option value="below">跌破提醒</option><option value="above">涨破提醒</option><option value="both">双向提醒</option></select>
+                    <div class="row mb-2">
+                        <div class="col-6"><label class="form-label mb-0">股票代码</label><input type="text" class="form-control form-control-sm" id="addCode" placeholder="sh601868" required></div>
+                        <div class="col-6"><label class="form-label mb-0">股票名称</label><input type="text" class="form-control form-control-sm" id="addName" placeholder="可选"></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-4"><label class="form-label mb-0">目标价格</label><input type="number" class="form-control form-control-sm" id="addTarget" step="0.01" required></div>
+                        <div class="col-4"><label class="form-label mb-0">手数</label><input type="number" class="form-control form-control-sm" id="addLots" placeholder="可选"></div>
+                        <div class="col-4"><label class="form-label mb-0">委托方向</label>
+                            <select class="form-select form-select-sm" id="addPosition"><option value="多仓">多仓</option><option value="空仓">空仓</option></select>
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6"><label class="form-label mb-0">监控方向</label>
+                            <select class="form-select form-select-sm" id="addDirection"><option value="below">跌破提醒</option><option value="above">涨破提醒</option><option value="both">双向提醒</option></select>
+                        </div>
+                        <div class="col-6"><label class="form-label mb-0">状态</label>
+                            <select class="form-select form-select-sm" id="addStatus"><option value="enabled">启用</option><option value="paused">暂停</option></select>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -287,17 +300,30 @@
 
 <!-- 编辑股票模态框 -->
 <div class="modal fade" id="editStockModal" tabindex="-1">
-    <div class="modal-dialog modal-sm">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header py-2"><h6 class="modal-title">编辑监控配置</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body py-2">
                 <form id="editStockForm">
                     <input type="hidden" id="editIndex">
-                    <div class="mb-2"><label class="form-label mb-0">股票代码</label><input type="text" class="form-control form-control-sm" id="editCode" readonly></div>
-                    <div class="mb-2"><label class="form-label mb-0">股票名称</label><input type="text" class="form-control form-control-sm" id="editName"></div>
-                    <div class="mb-2"><label class="form-label mb-0">目标价格</label><input type="number" class="form-control form-control-sm" id="editTarget" step="0.01" required></div>
-                    <div class="mb-2"><label class="form-label mb-0">监控方向</label>
-                        <select class="form-select form-select-sm" id="editDirection"><option value="below">跌破提醒</option><option value="above">涨破提醒</option><option value="both">双向提醒</option></select>
+                    <div class="row mb-2">
+                        <div class="col-6"><label class="form-label mb-0">股票代码</label><input type="text" class="form-control form-control-sm" id="editCode" readonly></div>
+                        <div class="col-6"><label class="form-label mb-0">股票名称</label><input type="text" class="form-control form-control-sm" id="editName"></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-4"><label class="form-label mb-0">目标价格</label><input type="number" class="form-control form-control-sm" id="editTarget" step="0.01" required></div>
+                        <div class="col-4"><label class="form-label mb-0">手数</label><input type="number" class="form-control form-control-sm" id="editLots" placeholder="可选"></div>
+                        <div class="col-4"><label class="form-label mb-0">委托方向</label>
+                            <select class="form-select form-select-sm" id="editPosition"><option value="多仓">多仓</option><option value="空仓">空仓</option></select>
+                        </div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-6"><label class="form-label mb-0">监控方向</label>
+                            <select class="form-select form-select-sm" id="editDirection"><option value="below">跌破提醒</option><option value="above">涨破提醒</option><option value="both">双向提醒</option></select>
+                        </div>
+                        <div class="col-6"><label class="form-label mb-0">状态</label>
+                            <select class="form-select form-select-sm" id="editStatus"><option value="enabled">启用</option><option value="paused">暂停</option></select>
+                        </div>
                     </div>
                 </form>
             </div>
