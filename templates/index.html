@@ -350,7 +350,11 @@
             <div class="config-panel" id="configPanel">
                 <div class="panel-header">
                     <span><i class="bi bi-gear"></i> 监控配置</span>
-                    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addStockModal"><i class="bi bi-plus"></i> 添加</button>
+                    <div>
+                        <button class="btn btn-outline-success btn-sm me-1" onclick="document.getElementById('csvFileInput').click()"><i class="bi bi-upload"></i> 一键导入</button>
+                        <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addStockModal"><i class="bi bi-plus"></i> 添加</button>
+                        <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="importCSV(this)">
+                    </div>
                 </div>
                 <div class="table-scroll">
                     <table class="table table-hover config-table" id="configTable">

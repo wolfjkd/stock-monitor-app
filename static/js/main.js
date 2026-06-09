@@ -533,6 +533,118 @@ function initPanelSplitter() {
 }
 
 // ============================================================
+// CSV一键导入
+// ============================================================
+
+function importCSV(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const text = e.target.result;
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            if (lines.length < 2) {
+                showToast('CSV文件为空或格式错误', 'warning');
+                return;
+            }
+
+            // 解析表头
+            const header = lines[0].split(',').map(h => h.trim());
+            const codeIdx = header.indexOf('证券代码');
+            const typeIdx = header.indexOf('委托类型');
+            const priceIdx = header.indexOf('委托价格');
+            const qtyIdx = header.indexOf('委托数量');
+
+            if (codeIdx === -1 || typeIdx === -1 || priceIdx === -1 || qtyIdx === -1) {
+                showToast('CSV表头缺少必要列：证券代码/委托类型/委托价格/委托数量', 'warning');
+                return;
+            }
+
+            const newAlerts = [];
+            const skipped = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(',').map(c => c.trim());
+                if (cols.length < 4) continue;
+
+                // 证券代码：SH.603077 → sh603077
+                let code = cols[codeIdx].replace('.', '').toLowerCase();
+                if (!/^(sh|sz)\d{6}$/.test(code)) {
+                    skipped.push(cols[codeIdx]);
+                    continue;
+                }
+
+                // 委托类型 → 委托方向 + 监控方向
+                const type = cols[typeIdx];
+                let position, dir;
+                if (type.includes('买入')) {
+                    position = '多仓';
+                    dir = 'below';  // 买入：跌破目标价提醒
+                } else if (type.includes('卖出')) {
+                    position = '空仓';
+                    dir = 'above';  // 卖出：涨破目标价提醒
+                } else {
+                    position = '多仓';
+                    dir = 'below';
+                }
+
+                // 委托价格 → 目标价格
+                const target = parseFloat(cols[priceIdx]);
+                if (isNaN(target) || target <= 0) {
+                    skipped.push(cols[codeIdx] + '(价格无效)');
+                    continue;
+                }
+
+                // 委托数量 → 手数（股数÷100）
+                const shares = parseInt(cols[qtyIdx]);
+                const lots = isNaN(shares) ? null : Math.round(shares / 100);
+
+                // 查找股票名称（从现有配置中获取）
+                const existing = currentConfig.alerts.find(a => a.code === code);
+                const name = existing ? existing.name : code;
+
+                const alert = {
+                    code,
+                    name,
+                    target,
+                    dir,
+                    position,
+                    status: 'enabled'
+                };
+                if (lots > 0) alert.lots = lots;
+
+                newAlerts.push(alert);
+            }
+
+            if (newAlerts.length === 0) {
+                showToast('未解析到有效数据', 'warning');
+                return;
+            }
+
+            // 追加到现有配置
+            currentConfig.alerts.push(...newAlerts);
+            saveConfig(currentConfig);
+
+            let msg = `成功导入 ${newAlerts.length} 条监控`;
+            if (skipped.length > 0) {
+                msg += `，跳过 ${skipped.length} 条（${skipped.join(', ')}）`;
+            }
+            showToast(msg, 'success');
+
+        } catch (err) {
+            showToast('CSV解析失败: ' + err.message, 'danger');
+        }
+    };
+
+    reader.readAsText(file, 'UTF-8');
+    // 清空input，允许重复导入同一文件
+    input.value = '';
+}
+
+// ============================================================
 // 股票管理
 // ============================================================
 
