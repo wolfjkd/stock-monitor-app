@@ -1,140 +1,20 @@
 {
   "alerts": [
     {
-      "code": "sh603077",
+      "code": "sh601868",
       "dir": "below",
-      "name": "和邦生物",
-      "note": "喜总-融资买入",
+      "name": "中国能建",
       "position": "多仓",
-      "target": 2.25
+      "status": "enabled",
+      "target": 2.80
     },
     {
-      "code": "sh603077",
-      "dir": "below",
-      "name": "和邦生物",
-      "note": "喜总-融资买入",
-      "position": "多仓",
-      "target": 2.24
-    },
-    {
-      "code": "sh603077",
+      "code": "sh601868",
       "dir": "above",
-      "name": "和邦生物",
-      "note": "喜总-现金卖出",
+      "name": "中国能建",
       "position": "空仓",
-      "target": 2.36
-    },
-    {
-      "code": "sh603077",
-      "dir": "above",
-      "name": "和邦生物",
-      "note": "喜总-现金卖出",
-      "position": "空仓",
-      "target": 2.35
-    },
-    {
-      "code": "sh603077",
-      "dir": "above",
-      "name": "和邦生物",
-      "note": "喜总-现金卖出",
-      "position": "空仓",
-      "target": 2.34
-    },
-    {
-      "code": "sh603077",
-      "dir": "above",
-      "name": "和邦生物",
-      "note": "喜总-现金卖出",
-      "position": "空仓",
-      "target": 2.33
-    },
-    {
-      "code": "sh600170",
-      "dir": "below",
-      "name": "上海建工",
-      "note": "SW刘总-融资买入",
-      "position": "多仓",
-      "target": 2.42
-    },
-    {
-      "code": "sh600170",
-      "dir": "below",
-      "name": "上海建工",
-      "note": "SW刘总-融资买入",
-      "position": "多仓",
-      "target": 2.41
-    },
-    {
-      "code": "sh600170",
-      "dir": "below",
-      "name": "上海建工",
-      "note": "SW刘总-融资买入",
-      "position": "多仓",
-      "target": 2.4
-    },
-    {
-      "code": "sh600170",
-      "dir": "above",
-      "name": "上海建工",
-      "note": "SW刘总-现金卖出",
-      "position": "空仓",
-      "target": 2.46
-    },
-    {
-      "code": "sh600170",
-      "dir": "above",
-      "name": "上海建工",
-      "note": "SW刘总-现金卖出",
-      "position": "空仓",
-      "target": 2.47
-    },
-    {
-      "code": "sh600170",
-      "dir": "above",
-      "name": "上海建工",
-      "note": "SW刘总-现金卖出",
-      "position": "空仓",
-      "target": 2.48
-    },
-    {
-      "code": "sh601390",
-      "dir": "below",
-      "name": "中国中铁",
-      "note": "稳健9-融资买入",
-      "position": "多仓",
-      "target": 4.5
-    },
-    {
-      "code": "sh601390",
-      "dir": "below",
-      "name": "中国中铁",
-      "note": "稳健9-融资买入",
-      "position": "多仓",
-      "target": 4.49
-    },
-    {
-      "code": "sh601390",
-      "dir": "below",
-      "name": "中国中铁",
-      "note": "稳健9-融资买入",
-      "position": "多仓",
-      "target": 4.48
-    },
-    {
-      "code": "sh601390",
-      "dir": "above",
-      "name": "中国中铁",
-      "note": "稳健9-现金卖出",
-      "position": "空仓",
-      "target": 4.58
-    },
-    {
-      "code": "sh601390",
-      "dir": "above",
-      "name": "中国中铁",
-      "note": "稳健9-现金卖出",
-      "position": "空仓",
-      "target": 4.59
+      "status": "paused",
+      "target": 2.95
     }
   ],
   "interval": 5,
