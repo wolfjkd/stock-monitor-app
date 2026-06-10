@@ -85,6 +85,13 @@ async function saveConfig(config) {
 
 function renderConfigTable() {
     const tbody = document.getElementById('configTableBody');
+
+    // 保存当前勾选状态（用 data-index 作为key）
+    const checkedSet = new Set();
+    tbody.querySelectorAll('input[type="checkbox"][data-index]:checked').forEach(cb => {
+        checkedSet.add(cb.dataset.index);
+    });
+
     if (!currentConfig || !currentConfig.alerts || currentConfig.alerts.length === 0) {
         tbody.innerHTML = `
             <tr>
@@ -159,6 +166,16 @@ function renderConfigTable() {
             </tr>
         `;
     }).join('');
+
+    // 恢复勾选状态
+    if (checkedSet.size > 0) {
+        tbody.querySelectorAll('input[type="checkbox"][data-index]').forEach(cb => {
+            if (checkedSet.has(cb.dataset.index)) {
+                cb.checked = true;
+            }
+        });
+        updateBatchBar();
+    }
 }
 
 function getStatus(item, quote) {
