@@ -154,7 +154,7 @@ function renderConfigTable() {
                 <td><code>${item.code}</code></td>
                 <td class="${getPriceClass(changePct)}">${formatChange(changePct)}</td>
                 <td class="${getPriceClass(changePct)}">${formatPrice(price)}</td>
-                <td class="${posColorClass}">${formatPrice(item.target)}</td>
+                <td class="${posColorClass} target-price">${formatPrice(item.target)}</td>
                 <td class="${posColorClass}" style="font-size:11px">${lots}</td>
                 <td><span class="${positionClass}" style="font-size:11px">${position}</span></td>
                 <td><span class="${dirClass}" style="font-size:11px">${dirLabel}</span></td>

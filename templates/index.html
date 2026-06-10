@@ -223,6 +223,17 @@
             user-select: none;
         }
         .drag-handle:active { cursor: grabbing; }
+
+        /* 目标价列突出显示 */
+        .config-table td.target-price,
+        .config-table th.target-price {
+            border-left: 3px solid #4a90d9;
+            border-right: 3px solid #4a90d9;
+            font-size: 13px;
+            font-weight: 700;
+            background: rgba(74, 144, 217, 0.06);
+        }
+
         /* 预警行闪烁 */
         @keyframes alertFlash {
             0%, 100% { background-color: #f8d7da; }
@@ -408,7 +419,7 @@
                                 <th style="width:80px">代码<div class="col-resize"></div></th>
                                 <th style="width:65px">涨跌幅<div class="col-resize"></div></th>
                                 <th style="width:65px">当前价<div class="col-resize"></div></th>
-                                <th style="width:65px">目标价<div class="col-resize"></div></th>
+                                <th class="target-price" style="width:70px">目标价<div class="col-resize"></div></th>
                                 <th style="width:50px">手数<div class="col-resize"></div></th>
                                 <th style="width:50px">委托<div class="col-resize"></div></th>
                                 <th style="width:65px">监控方向<div class="col-resize"></div></th>
