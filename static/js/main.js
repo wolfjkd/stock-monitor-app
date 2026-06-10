@@ -95,7 +95,7 @@ function renderConfigTable() {
     if (!currentConfig || !currentConfig.alerts || currentConfig.alerts.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="11" class="text-center text-muted py-4">
+                <td colspan="12" class="text-center text-muted py-4">
                     <i class="bi bi-inbox"></i> 暂无监控股票，点击"添加"开始
                 </td>
             </tr>
@@ -147,8 +147,9 @@ function renderConfigTable() {
         checkFirstTrigger(item, quote, priceStatus);
 
         return `
-            <tr class="${rowClass}">
+            <tr class="${rowClass}" draggable="true" data-index="${index}" data-code="${item.code}" ondragstart="onDragStart(event)" ondragover="onDragOver(event)" ondrop="onDrop(event)" ondragend="onDragEnd(event)">
                 <td class="chk-cell"><input type="checkbox" data-index="${index}" onchange="updateBatchBar()"></td>
+                <td><span class="drag-handle" title="拖动排序">⋮⋮</span></td>
                 <td><strong>${item.name || item.code}</strong></td>
                 <td><code>${item.code}</code></td>
                 <td class="${getPriceClass(changePct)}">${formatChange(changePct)}</td>
@@ -713,6 +714,104 @@ function importCSV(input) {
     reader.readAsText(file, 'GBK');
     // 清空input，允许重复导入同一文件
     input.value = '';
+}
+
+// ============================================================
+// 拖拽排序（同股整体移动）
+// ============================================================
+
+let dragSourceIndex = null;
+
+function onDragStart(e) {
+    dragSourceIndex = parseInt(e.currentTarget.dataset.index);
+    e.currentTarget.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragSourceIndex);
+}
+
+function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const row = e.currentTarget;
+    // 清除之前的drag-over样式
+    document.querySelectorAll('.config-table tr.drag-over').forEach(r => r.classList.remove('drag-over'));
+    row.classList.add('drag-over');
+}
+
+function onDrop(e) {
+    e.preventDefault();
+    document.querySelectorAll('.config-table tr.drag-over').forEach(r => r.classList.remove('drag-over'));
+
+    const targetIndex = parseInt(e.currentTarget.dataset.index);
+    if (dragSourceIndex === null || dragSourceIndex === targetIndex) return;
+
+    const alerts = currentConfig.alerts;
+    const sourceItem = alerts[dragSourceIndex];
+    const sourceCode = sourceItem.code;
+
+    // 找出同一股票的所有条目
+    const sameStockIndices = [];
+    alerts.forEach((a, i) => {
+        if (a.code === sourceCode) sameStockIndices.push(i);
+    });
+
+    // 找出目标股票组
+    const targetCode = alerts[targetIndex].code;
+    const targetStockIndices = [];
+    alerts.forEach((a, i) => {
+        if (a.code === targetCode) targetStockIndices.push(i);
+    });
+
+    // 提取源组条目
+    const sameStockItems = sameStockIndices.map(i => alerts[i]);
+
+    // 从后往前删除源组（避免索引偏移）
+    sameStockIndices.sort((a, b) => b - a).forEach(i => alerts.splice(i, 1));
+
+    // 计算插入位置：目标组第一项在删除后的新位置
+    let insertAt;
+    if (targetCode === sourceCode) {
+        // 拖到同组，放回原位（相当于不操作）
+        const newTargetStart = alerts.findIndex((a, i) => {
+            if (a.code === targetCode) return true;
+            return false;
+        });
+        insertAt = newTargetStart >= 0 ? newTargetStart : alerts.length;
+    } else {
+        // 找目标组在删除后的起始位置
+        let count = 0;
+        for (let i = 0; i < alerts.length; i++) {
+            if (alerts[i].code === targetCode) {
+                insertAt = i;
+                break;
+            }
+            count++;
+        }
+        if (insertAt === undefined) insertAt = alerts.length;
+
+        // 判断插入到目标组前面还是后面
+        if (targetIndex > dragSourceIndex) {
+            // 往下拖 → 插到目标组后面
+            let targetGroupEnd = insertAt;
+            for (let i = insertAt; i < alerts.length; i++) {
+                if (alerts[i].code === targetCode) targetGroupEnd = i + 1;
+                else break;
+            }
+            insertAt = targetGroupEnd;
+        }
+    }
+
+    // 插入
+    alerts.splice(insertAt, 0, ...sameStockItems);
+
+    saveConfig(currentConfig);
+    showToast(`已移动 ${sourceItem.name || sourceItem.code}`, 'info');
+}
+
+function onDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    document.querySelectorAll('.config-table tr.drag-over').forEach(r => r.classList.remove('drag-over'));
+    dragSourceIndex = null;
 }
 
 // ============================================================

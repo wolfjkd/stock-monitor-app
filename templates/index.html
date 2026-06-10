@@ -197,17 +197,32 @@
             cursor: pointer;
         }
 
-        /* 股票分组背景色 */
+        /* 股票分组背景色（加深） */
         .config-table tr.stock-group-0 td { background: #ffffff; }
-        .config-table tr.stock-group-1 td { background: #f0f7ff; }
-        .config-table tr.stock-group-2 td { background: #fff8f0; }
-        .config-table tr.stock-group-3 td { background: #f0fff0; }
-        .config-table tr.stock-group-4 td { background: #fff0f5; }
-        .config-table tr.stock-group-5 td { background: #f5f0ff; }
-        /* 分隔线 */
+        .config-table tr.stock-group-1 td { background: #e8f0fe; }
+        .config-table tr.stock-group-2 td { background: #fef3e0; }
+        .config-table tr.stock-group-3 td { background: #e6f7ea; }
+        .config-table tr.stock-group-4 td { background: #fde8ef; }
+        .config-table tr.stock-group-5 td { background: #ede8fd; }
+        /* 分隔线（加粗加色） */
         .config-table tr.stock-divider td {
-            border-top: 2px solid #dee2e6;
+            border-top: 3px solid #4a90d9;
         }
+        /* 拖拽行样式 */
+        .config-table tr.drag-over td {
+            border-top: 2px dashed #4a90d9;
+        }
+        .config-table tr.dragging {
+            opacity: 0.4;
+        }
+        /* 拖拽手柄 */
+        .drag-handle {
+            cursor: grab;
+            color: #aaa;
+            font-size: 12px;
+            user-select: none;
+        }
+        .drag-handle:active { cursor: grabbing; }
         /* 预警行闪烁 */
         @keyframes alertFlash {
             0%, 100% { background-color: #f8d7da; }
@@ -388,6 +403,7 @@
                         <thead>
                             <tr id="configTableHead">
                                 <th class="chk-cell"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="全选"></th>
+                                <th style="width:20px"></th>
                                 <th style="width:80px">股票<div class="col-resize"></div></th>
                                 <th style="width:80px">代码<div class="col-resize"></div></th>
                                 <th style="width:65px">涨跌幅<div class="col-resize"></div></th>
