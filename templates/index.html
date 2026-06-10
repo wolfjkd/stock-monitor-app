@@ -170,6 +170,33 @@
         .pos-long { color: #e74c3c; font-weight: 700; }
         .pos-short { color: #2ecc71; font-weight: 700; }
 
+        /* 批量操作栏 */
+        .batch-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 10px;
+            background: #fff3cd;
+            border-top: 1px solid #ffc107;
+            font-size: 12px;
+        }
+        .batch-bar.d-none { display: none !important; }
+        .batch-info { color: #856404; }
+
+        /* 勾选框列 */
+        .config-table td.chk-cell,
+        .config-table th.chk-cell {
+            width: 32px;
+            min-width: 32px;
+            max-width: 32px;
+            text-align: center;
+            padding: 3px 2px;
+        }
+        .config-table td.chk-cell input,
+        .config-table th.chk-cell input {
+            cursor: pointer;
+        }
+
         /* 股票分组背景色 */
         .config-table tr.stock-group-0 td { background: #ffffff; }
         .config-table tr.stock-group-1 td { background: #f0f7ff; }
@@ -360,6 +387,7 @@
                     <table class="table table-hover config-table" id="configTable">
                         <thead>
                             <tr id="configTableHead">
+                                <th class="chk-cell"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="全选"></th>
                                 <th style="width:80px">股票<div class="col-resize"></div></th>
                                 <th style="width:80px">代码<div class="col-resize"></div></th>
                                 <th style="width:65px">涨跌幅<div class="col-resize"></div></th>
@@ -374,6 +402,12 @@
                         </thead>
                         <tbody id="configTableBody"></tbody>
                     </table>
+                </div>
+                <!-- 批量操作栏 -->
+                <div class="batch-bar d-none" id="batchBar">
+                    <span class="batch-info">已选 <strong id="selectedCount">0</strong> 项</span>
+                    <button class="btn btn-outline-danger btn-sm" onclick="batchDelete()"><i class="bi bi-trash"></i> 批量删除</button>
+                    <button class="btn btn-outline-secondary btn-sm ms-1" onclick="clearSelection()">取消选择</button>
                 </div>
             </div>
             <!-- 分割条 -->

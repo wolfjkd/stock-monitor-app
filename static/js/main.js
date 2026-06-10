@@ -88,7 +88,7 @@ function renderConfigTable() {
     if (!currentConfig || !currentConfig.alerts || currentConfig.alerts.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="10" class="text-center text-muted py-4">
+                <td colspan="11" class="text-center text-muted py-4">
                     <i class="bi bi-inbox"></i> 暂无监控股票，点击"添加"开始
                 </td>
             </tr>
@@ -141,6 +141,7 @@ function renderConfigTable() {
 
         return `
             <tr class="${rowClass}">
+                <td class="chk-cell"><input type="checkbox" data-index="${index}" onchange="updateBatchBar()"></td>
                 <td><strong>${item.name || item.code}</strong></td>
                 <td><code>${item.code}</code></td>
                 <td class="${getPriceClass(changePct)}">${formatChange(changePct)}</td>
@@ -695,6 +696,73 @@ function importCSV(input) {
     reader.readAsText(file, 'GBK');
     // 清空input，允许重复导入同一文件
     input.value = '';
+}
+
+// ============================================================
+// 批量操作
+// ============================================================
+
+function toggleSelectAll(checkbox) {
+    const tbody = document.getElementById('configTableBody');
+    const cbs = tbody.querySelectorAll('input[type="checkbox"][data-index]');
+    cbs.forEach(cb => cb.checked = checkbox.checked);
+    updateBatchBar();
+}
+
+function updateBatchBar() {
+    const tbody = document.getElementById('configTableBody');
+    const cbs = tbody.querySelectorAll('input[type="checkbox"][data-index]:checked');
+    const count = cbs.length;
+    const bar = document.getElementById('batchBar');
+    const countEl = document.getElementById('selectedCount');
+
+    if (count > 0) {
+        bar.classList.remove('d-none');
+        countEl.textContent = count;
+    } else {
+        bar.classList.add('d-none');
+    }
+
+    // 更新全选框状态
+    const allCbs = tbody.querySelectorAll('input[type="checkbox"][data-index]');
+    const selectAll = document.getElementById('selectAll');
+    if (allCbs.length > 0) {
+        selectAll.checked = count === allCbs.length;
+        selectAll.indeterminate = count > 0 && count < allCbs.length;
+    }
+}
+
+function clearSelection() {
+    const tbody = document.getElementById('configTableBody');
+    const cbs = tbody.querySelectorAll('input[type="checkbox"][data-index]');
+    cbs.forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    document.getElementById('selectAll').indeterminate = false;
+    updateBatchBar();
+}
+
+function batchDelete() {
+    const tbody = document.getElementById('configTableBody');
+    const cbs = tbody.querySelectorAll('input[type="checkbox"][data-index]:checked');
+    const indices = Array.from(cbs).map(cb => parseInt(cb.dataset.index)).sort((a, b) => b - a);
+
+    if (indices.length === 0) return;
+
+    const names = indices.map(i => currentConfig.alerts[i].name || currentConfig.alerts[i].code);
+    if (!confirm(`确定删除 ${indices.length} 条监控？\n${names.join(', ')}`)) return;
+
+    // 清除触发记录
+    indices.forEach(i => {
+        const s = currentConfig.alerts[i];
+        const key = `${s.code}_${s.target}_${s.dir || 'below'}`;
+        triggeredAlerts.delete(key);
+    });
+
+    // 从后往前删除（索引已降序排列）
+    indices.forEach(i => currentConfig.alerts.splice(i, 1));
+
+    saveConfig(currentConfig);
+    showToast(`已删除 ${indices.length} 条监控`, 'success');
 }
 
 // ============================================================
