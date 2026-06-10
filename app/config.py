@@ -26,7 +26,7 @@ def get_resource_path(relative_path):
 
 # 应用信息
 APP_NAME = "A股价格预警监控"
-APP_VERSION = "4.1"
+APP_VERSION = "4.3"
 APP_TITLE = f"{APP_NAME} v{APP_VERSION}"
 
 # Flask服务器配置
