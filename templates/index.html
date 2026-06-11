@@ -78,7 +78,7 @@
             text-align: center;
             min-width: 0;
         }
-        .quote-card .q-name { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+        .quote-card .q-name { font-weight: 700; font-size: 17px; margin-bottom: 2px; }
         .quote-card .q-price { font-size: 20px; font-weight: 700; }
         .quote-card .q-change { font-size: 12px; font-weight: 600; }
         .quote-card .q-target { font-size: 11px; color: #6c757d; }
@@ -127,11 +127,12 @@
             overflow-x: auto;
         }
         .config-table {
-            font-size: 12px;
+            font-size: 14px;
             margin: 0;
-            table-layout: fixed;
+            table-layout: auto;
             width: max-content;
             min-width: 100%;
+            border-collapse: collapse;
         }
         .config-table th {
             background: #f8f9fa;
@@ -144,9 +145,10 @@
             position: relative;
             user-select: none;
             white-space: nowrap;
+            text-align: center;
         }
         .config-table th:last-child { border-right: none; }
-        .config-table td { padding: 3px 6px; vertical-align: middle; border-right: 1px solid #eee; white-space: nowrap; }
+        .config-table td { padding: 3px 6px; vertical-align: middle; border-right: 1px solid #eee; white-space: nowrap; text-align: center; }
         .config-table td:last-child { border-right: none; }
         .config-table .btn { padding: 1px 5px; font-size: 11px; }
 
@@ -229,7 +231,7 @@
         .config-table th.target-price {
             border-left: 3px solid #4a90d9;
             border-right: 3px solid #4a90d9;
-            font-size: 13px;
+            font-size: 16px;
             font-weight: 700;
             background: rgba(74, 144, 217, 0.06);
         }
@@ -279,15 +281,37 @@
             color: #fff;
         }
 
+        /* 右侧面板容器（垂直分割） */
+        .right-panel {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 150px;
+            gap: 0;
+        }
+        /* 水平分割条 */
+        .panel-splitter-h {
+            height: 6px;
+            cursor: row-resize;
+            background: #e0e0e0;
+            border-radius: 3px;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+        .panel-splitter-h:hover,
+        .panel-splitter-h.active {
+            background: #4a90d9;
+        }
         /* 预警日志 */
         .alert-panel {
-            flex: 2;
+            flex: 1;
             background: #1a1a2e;
             border-radius: 6px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            min-width: 150px;
+            min-height: 80px;
         }
         .alert-panel .panel-header {
             background: #16213e;
@@ -300,7 +324,7 @@
             overflow-y: auto;
             padding: 6px 8px;
             font-family: 'Consolas', monospace;
-            font-size: 12px;
+            font-size: 14px;
             color: #eee;
         }
         .alert-log .alert-item { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
@@ -309,6 +333,80 @@
         .alert-log .alert-heartbeat { color: #555; font-style: italic; }
         .alert-log::-webkit-scrollbar { width: 4px; }
         .alert-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+        /* 大单标记面板 */
+        .bigorder-panel {
+            flex: 1;
+            background: #0d1117;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 80px;
+        }
+        .bigorder-panel .panel-header {
+            background: #161b22;
+            color: #eee;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .bigorder-panel .panel-header .btn { color: #aaa; border-color: #555; }
+        .bigorder-threshold { font-size: 10px; color: #ffa500; background: rgba(255,165,0,0.15); padding: 1px 6px; border-radius: 3px; }
+        .bigorder-log {
+            flex: 1;
+            overflow: hidden;
+            padding: 4px 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            color: #eee;
+        }
+        /* 多列布局 */
+        .bo-columns {
+            display: flex;
+            gap: 6px;
+            height: 100%;
+        }
+        .bo-col {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .bo-col-header {
+            background: #161b22;
+            color: #58a6ff;
+            font-weight: 700;
+            font-size: 12px;
+            text-align: center;
+            padding: 3px 4px;
+            border-bottom: 1px solid rgba(88,166,255,0.2);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-shrink: 0;
+        }
+        .bo-col-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2px 4px;
+        }
+        .bo-col-body::-webkit-scrollbar { width: 3px; }
+        .bo-col-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+        .bo-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1px 0;
+            gap: 4px;
+        }
+        .bo-r-vol { font-weight: 700; }
+        .bo-r-time { color: #8b949e; font-size: 10px; }
+        .bo-buy { color: #e74c3c; }
+        .bo-sell { color: #2ecc71; }
+        .bo-col-empty { color: #444; font-style: italic; text-align: center; padding: 4px; }
+        .bigorder-log .bigorder-empty { color: #555; font-style: italic; text-align: center; padding: 20px; }
         .table-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
         .table-scroll::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
 
@@ -417,16 +515,12 @@
                             <tr id="configTableHead">
                                 <th class="chk-cell"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)" title="全选"></th>
                                 <th style="width:20px"></th>
-                                <th style="width:80px">股票<div class="col-resize"></div></th>
-                                <th style="width:80px">代码<div class="col-resize"></div></th>
-                                <th style="width:65px">涨跌幅<div class="col-resize"></div></th>
-                                <th style="width:65px">当前价<div class="col-resize"></div></th>
-                                <th class="target-price" style="width:70px">目标价<div class="col-resize"></div></th>
-                                <th style="width:50px">手数<div class="col-resize"></div></th>
-                                <th style="width:50px">委托<div class="col-resize"></div></th>
-                                <th style="width:65px">监控方向<div class="col-resize"></div></th>
-                                <th style="width:50px">状态<div class="col-resize"></div></th>
-                                <th style="width:40px">操作</th>
+                                <th style="width:100px">股票<div class="col-resize"></div></th>
+                                <th class="target-price" style="width:80px">目标价<div class="col-resize"></div></th>
+                                <th style="width:55px">手数<div class="col-resize"></div></th>
+                                <th style="width:55px">委托<div class="col-resize"></div></th>
+                                <th style="width:70px">监控方向<div class="col-resize"></div></th>
+                                <th style="width:45px">操作</th>
                             </tr>
                         </thead>
                         <tbody id="configTableBody"></tbody>
@@ -441,14 +535,32 @@
             </div>
             <!-- 分割条 -->
             <div class="panel-splitter" id="panelSplitter"></div>
-            <!-- 右：预警日志 -->
-            <div class="alert-panel" id="alertPanel">
-                <div class="panel-header">
-                    <span><i class="bi bi-bell"></i> 预警日志</span>
-                    <button class="btn btn-outline-secondary btn-sm" onclick="clearAlerts()"><i class="bi bi-trash"></i> 清空</button>
+            <!-- 右：预警日志 + 大单标记 -->
+            <div class="right-panel" id="rightPanel">
+                <!-- 上：大单标记 -->
+                <div class="bigorder-panel" id="bigorderPanel" style="flex:3">
+                    <div class="panel-header">
+                        <span><i class="bi bi-lightning-charge"></i> 大单标记</span>
+                        <div>
+                            <span class="bigorder-threshold" id="bigorderThreshold">≥12000手</span>
+                            <button class="btn btn-outline-secondary btn-sm ms-1" onclick="clearBigOrders()"><i class="bi bi-trash"></i> 清空</button>
+                        </div>
+                    </div>
+                    <div class="bigorder-log" id="bigorderLog">
+                        <div class="bigorder-empty">等待大单数据...</div>
+                    </div>
                 </div>
-                <div class="alert-log" id="alertLog">
-                    <div class="alert-heartbeat">等待预警事件...</div>
+                <!-- 水平分割条 -->
+                <div class="panel-splitter-h" id="panelSplitterH"></div>
+                <!-- 下：预警日志 -->
+                <div class="alert-panel" id="alertPanel" style="flex:2">
+                    <div class="panel-header">
+                        <span><i class="bi bi-bell"></i> 预警日志</span>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="clearAlerts()"><i class="bi bi-trash"></i> 清空</button>
+                    </div>
+                    <div class="alert-log" id="alertLog">
+                        <div class="alert-heartbeat">等待预警事件...</div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -21,7 +21,8 @@ from app.config import (
 sys.path.insert(0, SCRIPTS_DIR)
 from price_alert import (
     get_quote_tdx, get_quote_tencent, close_tdx_client,
-    get_current_node_info, get_available_nodes, TDX_NODES
+    get_current_node_info, get_available_nodes, TDX_NODES,
+    get_tdx_client
 )
 
 # 创建Flask应用，指定模板和静态文件目录
@@ -46,6 +47,16 @@ alert_queue = queue.Queue(maxsize=1000)
 
 # 实时行情缓存
 quotes_cache = {}
+
+# 大单标记队列（用于SSE推送）
+bigorder_queue = queue.Queue(maxsize=2000)
+
+# 大单检测配置
+BIGORDER_MIN_VOLUME = 12000  # 最小手数阈值
+BIGORDER_CHECK_INTERVAL = 3  # 检查间隔（秒）
+
+# 大单检测状态（记录每只股票上次检查的tick数量，避免重复）
+bigorder_last_index = {}
 
 
 def load_config():
@@ -205,6 +216,87 @@ def monitor_loop():
     print('[Monitor] Stopped')
 
 
+def bigorder_loop():
+    """大单检测主循环"""
+    global bigorder_last_index
+
+    print(f'[BigOrder] Starting large order detection, threshold={BIGORDER_MIN_VOLUME}手')
+
+    while monitor_state['running']:
+        try:
+            config = load_config()
+            alerts = config.get('alerts', [])
+            # 获取所有监控股票代码（去重）
+            monitored_codes = list(set(item['code'] for item in alerts))
+
+            if not monitored_codes:
+                time.sleep(BIGORDER_CHECK_INTERVAL)
+                continue
+
+            for code in monitored_codes:
+                if not monitor_state['running']:
+                    break
+
+                try:
+                    client = get_tdx_client()
+                    result = client.get_trade(code)
+                    if not result or not result.ticks:
+                        continue
+
+                    # 获取股票名称
+                    name = code
+                    for item in alerts:
+                        if item['code'] == code and item.get('name') and item['name'] != code:
+                            name = item['name']
+                            break
+
+                    # 获取上次检查的index，只处理新增的tick
+                    last_idx = bigorder_last_index.get(code, -1)
+                    new_ticks = []
+
+                    for tick in result.ticks:
+                        if tick.index > last_idx and tick.volume >= BIGORDER_MIN_VOLUME:
+                            new_ticks.append(tick)
+
+                    # 更新最后index
+                    if result.ticks:
+                        max_idx = max(t.index for t in result.ticks)
+                        bigorder_last_index[code] = max_idx
+
+                    # 推送大单
+                    for tick in new_ticks:
+                        amount = tick.volume * tick.price * 100
+                        order_data = {
+                            'code': code,
+                            'name': name,
+                            'time': tick.time_label,
+                            'price': tick.price,
+                            'volume': tick.volume,
+                            'amount': round(amount, 0),
+                            'side': tick.side,
+                            'timestamp': time.time()
+                        }
+                        try:
+                            bigorder_queue.put_nowait(order_data)
+                        except queue.Full:
+                            # 队列满了，丢弃最旧的
+                            try:
+                                bigorder_queue.get_nowait()
+                                bigorder_queue.put_nowait(order_data)
+                            except queue.Empty:
+                                pass
+
+                except Exception as e:
+                    print(f'[BigOrder] Error for {code}: {e}')
+
+        except Exception as e:
+            print(f'[BigOrder] Loop error: {e}')
+
+        time.sleep(BIGORDER_CHECK_INTERVAL)
+
+    print('[BigOrder] Stopped')
+
+
 # ============================================================
 # API路由
 # ============================================================
@@ -277,6 +369,8 @@ def api_start_monitor():
     monitor_state['start_time'] = datetime.datetime.now()
     monitor_state['thread'] = threading.Thread(target=monitor_loop, daemon=True)
     monitor_state['thread'].start()
+    # 启动大单检测
+    threading.Thread(target=bigorder_loop, daemon=True).start()
 
     return jsonify({
         'success': True,
@@ -404,6 +498,38 @@ def api_clear_alerts():
     return jsonify({'success': True, 'message': 'Alerts cleared'})
 
 
+@app.route('/api/bigorders/stream')
+def api_bigorders_stream():
+    """SSE大单标记流"""
+    def event_stream():
+        while True:
+            try:
+                order = bigorder_queue.get(timeout=30)
+                yield f"data: {json.dumps(order, ensure_ascii=False)}\n\n"
+            except queue.Empty:
+                yield ": heartbeat\n\n"
+
+    return Response(
+        event_stream(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
+
+@app.route('/api/bigorders/clear', methods=['POST'])
+def api_clear_bigorders():
+    """清空大单队列"""
+    while not bigorder_queue.empty():
+        try:
+            bigorder_queue.get_nowait()
+        except queue.Empty:
+            break
+    return jsonify({'success': True, 'message': 'Big orders cleared'})
+
+
 @app.route('/api/resolve_names', methods=['POST'])
 def api_resolve_names():
     """批量解析股票名称"""
@@ -437,4 +563,6 @@ def auto_start_monitor():
     monitor_state['start_time'] = datetime.datetime.now()
     monitor_state['thread'] = threading.Thread(target=monitor_loop, daemon=True)
     monitor_state['thread'].start()
+    # 启动大单检测
+    threading.Thread(target=bigorder_loop, daemon=True).start()
     print('[Monitor] Auto-started')

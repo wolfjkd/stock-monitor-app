@@ -9,6 +9,7 @@
 
 let monitorRunning = false;
 let eventSource = null;
+let bigOrderSource = null;
 let refreshInterval = null;
 let currentConfig = null;
 
@@ -26,8 +27,10 @@ document.addEventListener('DOMContentLoaded', function() {
     loadNodes();
     refreshInterval = setInterval(refreshQuotes, 3000);
     connectAlertStream();
+    connectBigOrderStream();
     initColResize();
     initPanelSplitter();
+    initPanelSplitterH();
 });
 
 // ============================================================
@@ -95,7 +98,7 @@ function renderConfigTable() {
     if (!currentConfig || !currentConfig.alerts || currentConfig.alerts.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="12" class="text-center text-muted py-4">
+                <td colspan="8" class="text-center text-muted py-4">
                     <i class="bi bi-inbox"></i> 暂无监控股票，点击"添加"开始
                 </td>
             </tr>
@@ -115,8 +118,6 @@ function renderConfigTable() {
 
     tbody.innerHTML = currentConfig.alerts.map((item, index) => {
         const quote = window.quotesCache ? window.quotesCache[item.code] : null;
-        const price = quote ? quote.price : '--';
-        const changePct = quote ? quote.changePct : null;
         const priceStatus = getStatus(item, quote);
         const dir = item.dir || 'below';
         const dirLabel = dir === 'below' ? '跌破' : dir === 'above' ? '涨破' : '双向';
@@ -130,12 +131,9 @@ function renderConfigTable() {
         // 手数
         const lots = item.lots || '--';
 
-        // 启用/暂停状态
+        // 启用/暂停状态（仅用于行样式，表格中不显示）
         const status = item.status || 'enabled';
         const isPaused = status === 'paused';
-        const statusBadge = isPaused
-            ? '<span class="badge bg-secondary" style="font-size:10px">暂停</span>'
-            : '<span class="badge bg-success" style="font-size:10px">启用</span>';
 
         const groupClass = `stock-group-${stockGroups[item.code]}`;
         const isDivider = index > 0 && currentConfig.alerts[index - 1].code !== item.code;
@@ -151,14 +149,10 @@ function renderConfigTable() {
                 <td class="chk-cell"><input type="checkbox" data-index="${index}" onchange="updateBatchBar()"></td>
                 <td><span class="drag-handle" title="拖动排序">⋮⋮</span></td>
                 <td><strong>${item.name || item.code}</strong></td>
-                <td><code>${item.code}</code></td>
-                <td class="${getPriceClass(changePct)}">${formatChange(changePct)}</td>
-                <td class="${getPriceClass(changePct)}">${formatPrice(price)}</td>
                 <td class="${posColorClass} target-price">${formatPrice(item.target)}</td>
                 <td class="${posColorClass}" style="font-size:11px">${lots}</td>
                 <td><span class="${positionClass}" style="font-size:11px">${position}</span></td>
                 <td><span class="${dirClass}" style="font-size:11px">${dirLabel}</span></td>
-                <td>${statusBadge}</td>
                 <td>
                     <button class="btn btn-outline-primary" onclick="editStock(${index})">
                         <i class="bi bi-pencil"></i>
@@ -336,10 +330,9 @@ function renderStockCards() {
 
         return `
             <div class="${cardClass}">
-                <div class="q-name">${quote.name || item.name || item.code}</div>
+                <div class="q-name">${item.name || quote.name || item.code}</div>
                 <div class="q-price ${priceClass}">¥${formatPrice(price)}</div>
                 <div class="q-change ${priceClass}">${formatChange(changePct)}</div>
-                <div class="q-target">目标: ¥${formatPrice(item.target)}</div>
             </div>
         `;
     }).join('');
@@ -457,6 +450,106 @@ async function clearAlerts() {
 }
 
 // ============================================================
+// 大单标记
+// ============================================================
+
+// 大单缓存（按股票代码分组）
+const bigOrdersCache = {};
+
+function connectBigOrderStream() {
+    if (bigOrderSource) {
+        bigOrderSource.close();
+    }
+
+    bigOrderSource = new EventSource('/api/bigorders/stream');
+
+    bigOrderSource.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            addBigOrder(data);
+        } catch (e) {
+            console.error('Failed to parse big order:', e);
+        }
+    };
+
+    bigOrderSource.onerror = function() {
+        console.log('BigOrder SSE error, reconnecting in 5s...');
+        setTimeout(connectBigOrderStream, 5000);
+    };
+}
+
+function addBigOrder(order) {
+    const code = order.code;
+    if (!bigOrdersCache[code]) {
+        bigOrdersCache[code] = {
+            name: order.name || code,
+            orders: []
+        };
+    }
+    // 更新名称（可能后来才解析到）
+    if (order.name && order.name !== code) {
+        bigOrdersCache[code].name = order.name;
+    }
+
+    // 添加到头部（最新的在前）
+    bigOrdersCache[code].orders.unshift({
+        time: order.time,
+        price: order.price,
+        volume: order.volume,
+        amount: order.amount,
+        side: order.side
+    });
+
+    // 每只股票最多保留50条
+    if (bigOrdersCache[code].orders.length > 50) {
+        bigOrdersCache[code].orders = bigOrdersCache[code].orders.slice(0, 50);
+    }
+
+    renderBigOrders();
+}
+
+function renderBigOrders() {
+    const container = document.getElementById('bigorderLog');
+    const codes = Object.keys(bigOrdersCache);
+
+    if (codes.length === 0) {
+        container.innerHTML = '<div class="bigorder-empty">等待大单数据...</div>';
+        return;
+    }
+
+    // 按最新大单时间排序（最新的在前）
+    codes.sort((a, b) => {
+        const timeA = bigOrdersCache[a].orders[0]?.time || '';
+        const timeB = bigOrdersCache[b].orders[0]?.time || '';
+        return timeB.localeCompare(timeA);
+    });
+
+    // 多列布局：每只股票一列
+    container.innerHTML = '<div class="bo-columns">' + codes.map(code => {
+        const stock = bigOrdersCache[code];
+        const rowsHtml = stock.orders.map(o => {
+            const colorClass = o.side === 'buy' ? 'bo-buy' : 'bo-sell';
+            const volStr = o.volume >= 10000 ? (o.volume / 10000).toFixed(1) + '万' : o.volume;
+            return `<div class="bo-row ${colorClass}"><span class="bo-r-vol">${volStr}</span><span class="bo-r-time">${o.time}</span></div>`;
+        }).join('');
+
+        return `
+            <div class="bo-col">
+                <div class="bo-col-header">${stock.name}</div>
+                <div class="bo-col-body">${rowsHtml || '<div class="bo-col-empty">-</div>'}</div>
+            </div>
+        `;
+    }).join('') + '</div>';
+}
+
+async function clearBigOrders() {
+    await apiCall('/api/bigorders/clear', 'POST');
+    Object.keys(bigOrdersCache).forEach(k => delete bigOrdersCache[k]);
+    renderBigOrders();
+    showToast('大单日志已清空', 'info');
+}
+
+// ============================================================
 // 表格列拖拽调整宽度
 // ============================================================
 
@@ -464,11 +557,11 @@ function initColResize() {
     const table = document.getElementById('configTable');
     if (!table) return;
 
-    const headers = table.querySelectorAll('thead th');
     let resizing = false;
     let startX = 0;
     let startWidth = 0;
     let currentTh = null;
+    let colIndex = -1;
 
     table.addEventListener('mousedown', function(e) {
         const handle = e.target.closest('.col-resize');
@@ -479,6 +572,9 @@ function initColResize() {
         currentTh = handle.parentElement;
         startX = e.clientX;
         startWidth = currentTh.offsetWidth;
+        // 找到当前th在表头中的列索引
+        const ths = table.querySelectorAll('thead th');
+        colIndex = Array.from(ths).indexOf(currentTh);
         handle.classList.add('active');
         document.body.style.cursor = 'col-resize';
     });
@@ -487,7 +583,17 @@ function initColResize() {
         if (!resizing || !currentTh) return;
         const diff = e.clientX - startX;
         const newWidth = Math.max(30, startWidth + diff);
+        // 同步设置表头和所有行的对应列宽度
         currentTh.style.width = newWidth + 'px';
+        currentTh.style.minWidth = newWidth + 'px';
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const cells = row.children;
+            if (cells[colIndex]) {
+                cells[colIndex].style.width = newWidth + 'px';
+                cells[colIndex].style.minWidth = newWidth + 'px';
+            }
+        });
     });
 
     document.addEventListener('mouseup', function() {
@@ -496,6 +602,7 @@ function initColResize() {
             document.querySelectorAll('.col-resize').forEach(h => h.classList.remove('active'));
             document.body.style.cursor = '';
             currentTh = null;
+            colIndex = -1;
         }
     });
 }
@@ -538,6 +645,50 @@ function initPanelSplitter() {
         const newAlertFlex = Math.max(1, startAlertFlex - diffRatio);
 
         configPanel.style.flex = newConfigFlex;
+        alertPanel.style.flex = newAlertFlex;
+    });
+
+    document.addEventListener('mouseup', function() {
+        if (dragging) {
+            dragging = false;
+            splitter.classList.remove('active');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
+    });
+}
+
+function initPanelSplitterH() {
+    const splitter = document.getElementById('panelSplitterH');
+    const bigorderPanel = document.getElementById('bigorderPanel');
+    const alertPanel = document.getElementById('alertPanel');
+    if (!splitter || !bigorderPanel || !alertPanel) return;
+
+    let dragging = false;
+    let startY = 0;
+    let startBigFlex = 3;
+    let startAlertFlex = 2;
+
+    splitter.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        dragging = true;
+        startY = e.clientY;
+        startBigFlex = parseFloat(getComputedStyle(bigorderPanel).flexGrow) || 3;
+        startAlertFlex = parseFloat(getComputedStyle(alertPanel).flexGrow) || 2;
+        splitter.classList.add('active');
+        document.body.style.cursor = 'row-resize';
+        document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (!dragging) return;
+        const parent = splitter.parentElement;
+        const parentHeight = parent.offsetHeight;
+        const diff = e.clientY - startY;
+        const diffRatio = diff / parentHeight * (startBigFlex + startAlertFlex);
+        const newBigFlex = Math.max(0.5, startBigFlex + diffRatio);
+        const newAlertFlex = Math.max(0.3, startAlertFlex - diffRatio);
+        bigorderPanel.style.flex = newBigFlex;
         alertPanel.style.flex = newAlertFlex;
     });
 

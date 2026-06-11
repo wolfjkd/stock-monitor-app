@@ -1,20 +1,211 @@
 {
   "alerts": [
     {
-      "code": "sh601868",
+      "code": "sh603077",
+      "dir": "above",
+      "lots": 448,
+      "name": "和邦生物",
+      "position": "空仓",
+      "status": "enabled",
+      "target": 2.42
+    },
+    {
+      "code": "sh603077",
+      "dir": "above",
+      "lots": 448,
+      "name": "和邦生物",
+      "position": "空仓",
+      "status": "enabled",
+      "target": 2.41
+    },
+    {
+      "code": "sh603077",
+      "dir": "above",
+      "lots": 448,
+      "name": "和邦生物",
+      "position": "空仓",
+      "status": "enabled",
+      "target": 2.4
+    },
+    {
+      "code": "sh603077",
       "dir": "below",
-      "name": "中国能建",
+      "lots": 448,
+      "name": "和邦生物",
       "position": "多仓",
       "status": "enabled",
-      "target": 2.80
+      "target": 2.33
+    },
+    {
+      "code": "sh603077",
+      "dir": "below",
+      "lots": 896,
+      "name": "和邦生物",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 2.32
+    },
+    {
+      "code": "sh603077",
+      "dir": "below",
+      "lots": 448,
+      "name": "和邦生物",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 2.31
+    },
+    {
+      "code": "sh603077",
+      "dir": "below",
+      "lots": 448,
+      "name": "和邦生物",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 2.31
+    },
+    {
+      "code": "sh600170",
+      "dir": "above",
+      "lots": 1536,
+      "name": "上海建工",
+      "position": "空仓",
+      "status": "enabled",
+      "target": 2.42
+    },
+    {
+      "code": "sh600170",
+      "dir": "above",
+      "lots": 1024,
+      "name": "上海建工",
+      "position": "空仓",
+      "status": "enabled",
+      "target": 2.41
+    },
+    {
+      "code": "sh600170",
+      "dir": "above",
+      "lots": 1280,
+      "name": "上海建工",
+      "position": "空仓",
+      "status": "enabled",
+      "target": 2.4
+    },
+    {
+      "code": "sh600170",
+      "dir": "below",
+      "lots": 1024,
+      "name": "上海建工",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 2.35
+    },
+    {
+      "code": "sh600170",
+      "dir": "below",
+      "lots": 1536,
+      "name": "上海建工",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 2.34
+    },
+    {
+      "code": "sh600170",
+      "dir": "below",
+      "lots": 1024,
+      "name": "上海建工",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 2.33
+    },
+    {
+      "code": "sh600170",
+      "dir": "below",
+      "lots": 1536,
+      "name": "上海建工",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 2.32
     },
     {
       "code": "sh601868",
-      "dir": "above",
+      "dir": "below",
+      "lots": 1250,
       "name": "中国能建",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 2.59
+    },
+    {
+      "code": "sh601868",
+      "dir": "below",
+      "lots": 1250,
+      "name": "中国能建",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 2.57
+    },
+    {
+      "code": "sh601868",
+      "dir": "below",
+      "lots": 1250,
+      "name": "中国能建",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 2.55
+    },
+    {
+      "code": "sh601868",
+      "dir": "below",
+      "lots": 1250,
+      "name": "中国能建",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 2.54
+    },
+    {
+      "code": "sh601390",
+      "dir": "above",
+      "lots": 666,
+      "name": "中国中铁",
       "position": "空仓",
-      "status": "paused",
-      "target": 2.95
+      "status": "enabled",
+      "target": 4.52
+    },
+    {
+      "code": "sh601390",
+      "dir": "above",
+      "lots": 666,
+      "name": "中国中铁",
+      "position": "空仓",
+      "status": "enabled",
+      "target": 4.51
+    },
+    {
+      "code": "sh601390",
+      "dir": "below",
+      "lots": 666,
+      "name": "中国中铁",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 4.4
+    },
+    {
+      "code": "sh601390",
+      "dir": "below",
+      "lots": 666,
+      "name": "中国中铁",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 4.39
+    },
+    {
+      "code": "sh601390",
+      "dir": "below",
+      "lots": 666,
+      "name": "中国中铁",
+      "position": "多仓",
+      "status": "enabled",
+      "target": 4.38
     }
   ],
   "interval": 5,
