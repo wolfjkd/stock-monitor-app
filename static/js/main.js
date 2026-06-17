@@ -174,7 +174,7 @@ function renderConfigTable() {
 }
 
 function getStatus(item, quote) {
-    if (!quote || quote.price === null || quote.price === undefined) {
+    if (!quote || quote.price === null || quote.price === undefined || quote.price <= 0) {
         return { class: 'status-safe', text: '等待数据' };
     }
 
@@ -205,6 +205,7 @@ function getStatus(item, quote) {
 
 function checkFirstTrigger(item, quote, priceStatus) {
     if (!quote || item.status === 'paused') return;
+    if (!quote.price || quote.price <= 0) return;
     if (priceStatus.class !== 'status-alert') return;
 
     // 生成唯一key: code + target + direction
@@ -364,6 +365,14 @@ async function stopMonitor() {
     if (result.success) {
         showToast('监控已停止', 'warning');
         checkMonitorStatus();
+        // 清除所有预警闪烁和触发记录
+        triggeredAlerts.clear();
+        document.querySelectorAll('.alert-row, .warning-row').forEach(row => {
+            row.classList.remove('alert-row', 'warning-row');
+        });
+        document.querySelectorAll('.alert-active').forEach(card => {
+            card.classList.remove('alert-active');
+        });
     } else {
         showToast('停止失败: ' + (result.error || '未知错误'), 'danger');
     }

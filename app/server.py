@@ -128,7 +128,7 @@ def monitor_loop():
                         continue
 
                     price = q.get('price')
-                    if price is None:
+                    if price is None or price <= 0:
                         continue
 
                     loop_success = True
@@ -217,7 +217,7 @@ def monitor_loop():
 
 
 def bigorder_loop():
-    """大单检测主循环"""
+    """大单检测主循环（eltdx 1.0.2 API）"""
     global bigorder_last_index
 
     print(f'[BigOrder] Starting large order detection, threshold={BIGORDER_MIN_VOLUME}手')
@@ -239,8 +239,13 @@ def bigorder_loop():
 
                 try:
                     client = get_tdx_client()
-                    result = client.get_trade(code)
-                    if not result or not result.ticks:
+                    # eltdx 1.0.2: client.trades.latest(code) 拿最新一笔
+                    resp = client.trades.latest(code)
+                    if not resp or not resp.ok:
+                        continue
+
+                    tick = resp.first()
+                    if not tick or tick.volume < BIGORDER_MIN_VOLUME:
                         continue
 
                     # 获取股票名称
@@ -250,41 +255,27 @@ def bigorder_loop():
                             name = item['name']
                             break
 
-                    # 获取上次检查的index，只处理新增的tick
-                    last_idx = bigorder_last_index.get(code, -1)
-                    new_ticks = []
-
-                    for tick in result.ticks:
-                        if tick.index > last_idx and tick.volume >= BIGORDER_MIN_VOLUME:
-                            new_ticks.append(tick)
-
-                    # 更新最后index
-                    if result.ticks:
-                        max_idx = max(t.index for t in result.ticks)
-                        bigorder_last_index[code] = max_idx
-
                     # 推送大单
-                    for tick in new_ticks:
-                        amount = tick.volume * tick.price * 100
-                        order_data = {
-                            'code': code,
-                            'name': name,
-                            'time': tick.time_label,
-                            'price': tick.price,
-                            'volume': tick.volume,
-                            'amount': round(amount, 0),
-                            'side': tick.side,
-                            'timestamp': time.time()
-                        }
+                    amount = tick.volume * tick.price * 100
+                    order_data = {
+                        'code': code,
+                        'name': name,
+                        'time': tick.time_label,
+                        'price': tick.price,
+                        'volume': tick.volume,
+                        'amount': round(amount, 0),
+                        'side': tick.side,
+                        'timestamp': time.time()
+                    }
+                    try:
+                        bigorder_queue.put_nowait(order_data)
+                    except queue.Full:
+                        # 队列满了，丢弃最旧的
                         try:
+                            bigorder_queue.get_nowait()
                             bigorder_queue.put_nowait(order_data)
-                        except queue.Full:
-                            # 队列满了，丢弃最旧的
-                            try:
-                                bigorder_queue.get_nowait()
-                                bigorder_queue.put_nowait(order_data)
-                            except queue.Empty:
-                                pass
+                        except queue.Empty:
+                            pass
 
                 except Exception as e:
                     print(f'[BigOrder] Error for {code}: {e}')
@@ -455,7 +446,7 @@ def api_switch_node():
     close_tdx_client()
     try:
         from eltdx import Client
-        client = Client(host=target_node['host'])
+        client = Client.from_hosts([target_node['host']])
         client.close()
         return jsonify({
             'success': True,

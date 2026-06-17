@@ -71,16 +71,20 @@ def get_tdx_client(host=None):
 
     # 如果指定了host，直接连接
     if host:
-        _tdx_client = Client(host=host)
-        _current_node = host
-        return _tdx_client
+        try:
+            _tdx_client = Client.from_hosts([host])
+            _current_node = host
+            return _tdx_client
+        except Exception as e:
+            print(f'[TDX] Failed to connect {host}: {e}')
+            raise
 
     # 否则按优先级选择节点
     for node in TDX_NODES:
         if node['host'] in _failed_nodes:
             continue
         try:
-            _tdx_client = Client(host=node['host'])
+            _tdx_client = Client.from_hosts([node['host']])
             _current_node = node['host']
             print(f'[TDX] Connected to {node["name"]} ({node["host"]})')
             return _tdx_client
@@ -149,16 +153,19 @@ def show_popup_async(title, message):
 
 
 def get_quote_tdx(code, host=None):
-    """从通达信协议获取实时行情（郑州节点，~15ms延迟）"""
+    """从通达信协议获取实时行情（eltdx 1.0.2 API）"""
     client = get_tdx_client(host)
-    result = client.get_quote(code)
-    if not result or len(result) == 0:
+    resp = client.quotes.get_snapshots([code])
+    if not resp or not resp.ok:
         raise ValueError(f'未获取到数据: {code}')
 
-    q = result[0]
+    q = resp.first()
+    if not q:
+        raise ValueError(f'未获取到数据: {code}')
+
     # 计算涨跌幅
-    pre_close = q.pre_close_price
-    last_price = q.last_price
+    pre_close = q.yest_close
+    last_price = q.price
     change_pct = None
     if pre_close and pre_close > 0:
         change_pct = ((last_price - pre_close) / pre_close) * 100
@@ -168,17 +175,17 @@ def get_quote_tdx(code, host=None):
         'code': code,
         'price': last_price,
         'yest_close': pre_close,
-        'open': q.open_price,
-        'high': q.high_price,
-        'low': q.low_price,
-        'volume': q.total_hand,
+        'open': q.open,
+        'high': q.high,
+        'low': q.low,
+        'volume': q.volume,
         'amount': q.amount,
         'change_pct': change_pct,
         # 盘口
-        'bid1': q.buy_levels[0].price if q.buy_levels else None,
-        'bid1_vol': q.buy_levels[0].volume if q.buy_levels else None,
-        'ask1': q.sell_levels[0].price if q.sell_levels else None,
-        'ask1_vol': q.sell_levels[0].volume if q.sell_levels else None,
+        'bid1': q.bid1_price,
+        'bid1_vol': q.bid1_volume,
+        'ask1': q.ask1_price,
+        'ask1_vol': q.ask1_volume,
     }
 
 
